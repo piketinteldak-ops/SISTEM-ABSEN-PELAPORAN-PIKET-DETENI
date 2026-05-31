@@ -1,224 +1,1189 @@
-// ============================================================
-//  APPS SCRIPT — Sistem Absen Piket Deteni
-//  Cara pasang: Ekstensi → Apps Script → paste kode ini
-//               → Deploy → New deployment → Web App
-//               → Execute as: Me | Who has access: Anyone
-// ============================================================
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f2d4a">
+  <title>Sistem Absen Piket Deteni</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
 
-const SHEET_LAPORAN  = 'Laporan Piket';
-const SHEET_DETENI   = 'Data Deteni';
-const SHEET_REKAP    = 'Rekap Otomatis';
+<style>
+  :root {
+    --navy: #0f2d4a;
+    --navy-light: #1a4a6e;
+    --gold: #c9a227;
+    --gold-light: #e8c040;
+    --cream: #f8f5ee;
+    --red-alert: #c0392b;
+    --green-ok: #1a7a4a;
+    --text-dark: #1a1a2e;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --card-bg: #ffffff;
+    --surface: #f9fafb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; }
+  .app { min-height: 600px; }
+  .header {
+    background: var(--navy);
+    color: #fff;
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 0;
+  }
+  .header-logo {
+    width: 48px; height: 48px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: var(--navy);
+    flex-shrink: 0;
+  }
+  .header-title { flex: 1; }
+  .header-title h1 { font-size: 17px; font-weight: 600; line-height: 1.3; }
+  .header-title p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+  .header-time { font-size: 15px; font-weight: 500; opacity: 0.9; text-align: right; }
+  .nav {
+    background: var(--navy-light);
+    display: flex;
+    border-top: 2px solid var(--gold);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    order: 10;
+  }
+  .nav-btn {
+    flex: 1; padding: 10px 6px;
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.65);
+    font-size: 12px; font-family: 'Inter', sans-serif;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-btn i { font-size: 22px; }
+  .nav-btn.active { color: var(--gold-light); background: rgba(255,255,255,0.08); }
+  .nav-btn:hover { color: #fff; }
+  .content { padding: 16px; padding-bottom: 32px; }
+  .section-title {
+    font-size: 12px; font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 16px 0 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
+  .card {
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .form-row { margin-bottom: 12px; }
+  .form-label {
+    display: block;
+    font-size: 14px;
+    color: #374151;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .required { color: #e24b4a; margin-left: 2px; }
+  input[type=text], input[type=tel], input[type=date], input[type=time],
+  select, textarea {
+    width: 100%;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  .radio-group, .check-group {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
+  }
+  .radio-option {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    background: var(--surface);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .radio-option input { display: none; }
+  .radio-option.selected-green { border-color: var(--green-ok); background: #e8f5ee; color: var(--green-ok); }
+  .radio-option.selected-red { border-color: var(--red-alert); background: #fdf0ef; color: var(--red-alert); }
+  .radio-option.selected-blue { border-color: #185fa5; background: #e6f1fb; color: #185fa5; }
+  .radio-option.selected-amber { border-color: #854f0b; background: #faeeda; color: #854f0b; }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 12px; font-weight: 500;
+  }
+  .badge-green { background: #e8f5ee; color: var(--green-ok); }
+  .badge-amber { background: #faeeda; color: #854f0b; }
+  .badge-blue { background: #e6f1fb; color: #185fa5; }
+  .badge-red { background: #fcebeb; color: var(--red-alert); }
+  .hidden { display: none !important; }
+  .btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px; font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 16px;
+    transition: background 0.15s;
+  }
+  .btn-submit:hover { background: var(--navy-light); }
+  .btn-submit.sending { background: #185fa5; }
+  .btn-wa {
+    background: #1a7a4a;
+  }
+  .btn-secondary {
+    width: 100%; padding: 10px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px; font-family: 'Inter', sans-serif;
+    cursor: pointer; color: var(--text-dark);
+    margin-top: 8px;
+  }
+  .alert-box {
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 12px;
+  }
+  .alert-info { background: #e6f1fb; color: #0c447c; border: 0.5px solid #b5d4f4; }
+  .alert-success { background: #eaf3de; color: #27500a; border: 0.5px solid #c0dd97; }
+  .alert-warning { background: #faeeda; color: #633806; border: 0.5px solid #fac775; }
+  .tab-pages { flex: 1; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .detainee-card {
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--surface);
+  }
+  .detainee-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .detainee-name { font-size: 16px; font-weight: 600; }
+  .detainee-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .add-detainee-btn {
+    width: 100%; padding: 10px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    font-size: 14px; font-family: 'Inter', sans-serif;
+    color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .add-detainee-btn:hover { border-color: var(--navy); color: var(--navy); }
+  .upload-box {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: var(--surface);
+    transition: all 0.15s;
+  }
+  .upload-box:hover { border-color: var(--navy); }
+  .upload-options {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .upload-opt {
+    flex: 1; padding: 8px 4px;
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px; text-align: center;
+    cursor: pointer; color: var(--text-dark);
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .upload-opt:hover { border-color: var(--navy); color: var(--navy); }
+  .upload-opt i { display: block; font-size: 26px; margin-bottom: 4px; }
+  .recap-table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+  }
+  .recap-table th {
+    background: var(--navy);
+    color: #fff;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 500;
+  }
+  .recap-table td {
+    padding: 8px 10px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text-dark);
+  }
+  .recap-table tr:hover td { background: var(--surface); }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px; margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-num { font-size: 28px; font-weight: 700; color: var(--navy); }
+  .stat-label { font-size: 13px; color: #6b7280; margin-top: 4px; }
+  .wa-preview {
+    background: #e8f5e0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    font-family: monospace;
+    color: #1a2a1a;
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 0.5px solid #c0dd97;
+  }
+  .settings-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { flex: 1; font-size: 14px; }
+  .settings-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .period-btn {
+    padding: 6px 14px;
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    background: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-dark);
+    transition: all 0.15s;
+  }
+  .period-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .success-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .success-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 28px 24px;
+    text-align: center;
+    max-width: 320px;
+    width: 90%;
+  }
+  .success-icon {
+    width: 56px; height: 56px;
+    background: #eaf3de; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: var(--green-ok);
+    margin: 0 auto 14px;
+  }
+  .piket-hour-badge {
+    background: var(--navy);
+    color: var(--gold-light);
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  input[type=file] { display: none; }
+  .link-display {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: monospace;
+    color: var(--text-muted);
+    word-break: break-all;
+    margin-top: 6px;
+  }
+</style>
 
-// ── Terima POST dari web app ──────────────────────────────────
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
+<div class="app" id="app">
+  <div class="header">
+    <div class="header-logo"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
+    <div class="header-title">
+      <h1>Sistem Absen Piket Deteni</h1>
+      <p>Imigrasi — Laporan Otomatis ke WhatsApp</p>
+    </div>
+    <div class="header-time" id="live-clock">--:--<br><small id="live-date"></small></div>
+  </div>
 
-    // Abaikan data test
-    if (data.isTest) {
-      return jsonResponse({ status: 'ok', message: 'Test koneksi berhasil' });
-    }
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPage('absen')" id="nav-absen">
+      <i class="ti ti-clipboard-list" aria-hidden="true"></i>Absen
+    </button>
+    <button class="nav-btn" onclick="showPage('rekap')" id="nav-rekap">
+      <i class="ti ti-chart-bar" aria-hidden="true"></i>Rekap
+    </button>
+    <button class="nav-btn" onclick="showPage('admin')" id="nav-admin">
+      <i class="ti ti-settings" aria-hidden="true"></i>Admin
+    </button>
+  </nav>
 
-    const ss     = SpreadsheetApp.getActiveSpreadsheet();
-    const shLap  = getOrCreateSheet(ss, SHEET_LAPORAN,  headerLaporan());
-    const shDet  = getOrCreateSheet(ss, SHEET_DETENI,   headerDeteni());
+  <div class="tab-pages">
 
-    // Baris laporan utama
-    const rowId = new Date().getTime().toString();
-    shLap.appendRow([
-      rowId,
-      data.tanggal,
-      data.jam,
-      data.jamPiket,
-      data.petugas,
-      data.waPetugas,
-      data.statusPetugas,
-      data.kondisi,
-      data.keteranganTA,
-      data.jumlahDeteni,
-      data.fotoKondisi,
-      data.fotoMakan,
-      new Date()  // timestamp server
-    ]);
+    <!-- PAGE: ABSEN -->
+    <div class="page active" id="page-absen">
+      <div class="content">
 
-    // Baris per deteni
-    const deteniList = JSON.parse(data.deteniJson || '[]');
-    deteniList.forEach(function(d) {
-      shDet.appendRow([
-        rowId,
-        data.tanggal,
-        data.jam,
-        data.petugas,
-        d.nama,
-        d.jk,
-        d.wn,
-        d.status,
-        d.deportTgl || '-',
-        d.deportJam || '-',
-        data.kondisi
-      ]);
-    });
+        <div class="alert-box alert-info">
+          <i class="ti ti-clock" aria-hidden="true"></i>
+          <div>Laporan piket dilakukan <strong>setiap 1 jam sekali</strong>. Isi semua data dengan lengkap dan benar. Laporan akan otomatis terkirim ke grup WhatsApp.</div>
+        </div>
 
-    // Update sheet rekap otomatis
-    updateRekap(ss);
+        <!-- JAM PIKET -->
+        <div class="section-title"><i class="ti ti-user-check" aria-hidden="true"></i> Data Petugas</div>
+        <div class="card">
+          <div class="form-row">
+            <label class="form-label">Nama Petugas Piket <span class="required">*</span></label>
+            <input type="text" id="nama-petugas" placeholder="Masukkan nama lengkap petugas">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Nomor WhatsApp Petugas <span class="required">*</span></label>
+            <input type="tel" id="wa-petugas" placeholder="Contoh: 08123456789">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Jam Piket <span class="required">*</span></label>
+            <select id="jam-piket">
+              <option value="">-- Pilih Jam Piket --</option>
+              <option>00:00 – 01:00</option><option>01:00 – 02:00</option>
+              <option>02:00 – 03:00</option><option>03:00 – 04:00</option>
+              <option>04:00 – 05:00</option><option>05:00 – 06:00</option>
+              <option>06:00 – 07:00</option><option>07:00 – 08:00</option>
+              <option>08:00 – 09:00</option><option>09:00 – 10:00</option>
+              <option>10:00 – 11:00</option><option>11:00 – 12:00</option>
+              <option>12:00 – 13:00</option><option>13:00 – 14:00</option>
+              <option>14:00 – 15:00</option><option>15:00 – 16:00</option>
+              <option>16:00 – 17:00</option><option>17:00 – 18:00</option>
+              <option>18:00 – 19:00</option><option>19:00 – 20:00</option>
+              <option>20:00 – 21:00</option><option>21:00 – 22:00</option>
+              <option>22:00 – 23:00</option><option>23:00 – 00:00</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Status Kehadiran Petugas <span class="required">*</span></label>
+            <div class="radio-group" id="status-petugas-group">
+              <label class="radio-option" onclick="selectRadio(this,'status-petugas-group','selected-blue')">
+                <input type="radio" name="status-petugas" value="Masih dalam pelaksanaan piket">
+                <i class="ti ti-loader" style="font-size:15px" aria-hidden="true"></i> Masih dalam pelaksanaan piket
+              </label>
+              <label class="radio-option" onclick="selectRadio(this,'status-petugas-group','selected-green')">
+                <input type="radio" name="status-petugas" value="Petugas telah menyelesaikan piket">
+                <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i> Telah menyelesaikan piket
+              </label>
+              <label class="radio-option" onclick="selectRadio(this,'status-petugas-group','selected-amber')">
+                <input type="radio" name="status-petugas" value="Petugas sudah melaksanakan serah terima piket">
+                <i class="ti ti-transfer" style="font-size:15px" aria-hidden="true"></i> Sudah serah terima piket
+              </label>
+            </div>
+          </div>
+        </div>
 
-    return jsonResponse({ status: 'ok', rowId: rowId });
+        <!-- DATA DETENI -->
+        <div class="section-title"><i class="ti ti-users" aria-hidden="true"></i> Data Deteni / Tahanan</div>
+        <div id="detainee-list"></div>
+        <button class="add-detainee-btn" onclick="addDetainee()">
+          <i class="ti ti-plus" aria-hidden="true"></i> Tambah Data Deteni
+        </button>
 
-  } catch (err) {
-    return jsonResponse({ status: 'error', message: err.toString() });
+        <!-- KONDISI KEAMANAN -->
+        <div class="section-title"><i class="ti ti-shield" aria-hidden="true"></i> Kondisi Keamanan</div>
+        <div class="card">
+          <div class="form-row">
+            <label class="form-label">Keterangan Kondisi Keamanan <span class="required">*</span></label>
+            <div class="radio-group" id="kondisi-group">
+              <label class="radio-option" onclick="selectRadio(this,'kondisi-group','selected-green'); toggleKondisi('aman')">
+                <input type="radio" name="kondisi" value="AMAN">
+                <i class="ti ti-shield-check" style="font-size:15px" aria-hidden="true"></i> AMAN
+              </label>
+              <label class="radio-option" onclick="selectRadio(this,'kondisi-group','selected-red'); toggleKondisi('tidak-aman')">
+                <input type="radio" name="kondisi" value="TIDAK AMAN">
+                <i class="ti ti-alert-triangle" style="font-size:15px" aria-hidden="true"></i> TIDAK AMAN
+              </label>
+            </div>
+          </div>
+          <div id="keterangan-tidak-aman" class="hidden">
+            <div class="form-row">
+              <label class="form-label">Keterangan Ketidakamanan <span class="required">*</span></label>
+              <textarea id="isi-tidak-aman" placeholder="Jelaskan kondisi ketidakamanan yang terjadi..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- UPLOAD FOTO -->
+        <div class="section-title"><i class="ti ti-camera" aria-hidden="true"></i> Dokumentasi Foto</div>
+        <div class="card">
+          <div class="alert-box alert-warning" style="margin-bottom:10px">
+            <i class="ti ti-info-circle" aria-hidden="true"></i>
+            <div>Foto kondisi deteni <strong>wajib</strong> diisi. Foto pemberian makan <strong>opsional</strong> — hanya diisi saat deteni sedang makan.</div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Foto Kondisi Deteni <span class="required">*</span></label>
+            <div class="upload-box" id="upload-kondisi-box">
+              <i class="ti ti-camera-plus" style="font-size:24px;display:block;margin-bottom:6px" aria-hidden="true"></i>
+              <span id="upload-kondisi-label">Tap untuk unggah foto kondisi</span>
+            </div>
+            <div class="upload-options" style="margin-top:8px">
+              <button class="upload-opt" onclick="triggerUpload('kondisi-kamera')">
+                <i class="ti ti-camera" aria-hidden="true"></i>Kamera
+              </button>
+              <button class="upload-opt" onclick="triggerUpload('kondisi-galeri')">
+                <i class="ti ti-photo" aria-hidden="true"></i>Galeri
+              </button>
+              <button class="upload-opt" onclick="openGDrive('kondisi')">
+                <i class="ti ti-brand-google-drive" aria-hidden="true"></i>Google Drive
+              </button>
+            </div>
+            <input type="file" id="kondisi-kamera" accept="image/*" capture="environment" onchange="handleUpload(this,'kondisi')">
+            <input type="file" id="kondisi-galeri" accept="image/*" onchange="handleUpload(this,'kondisi')">
+          </div>
+
+          <div class="form-row" style="margin-top:14px">
+            <label class="form-label">Foto Pemberian Makan (opsional)</label>
+            <div class="upload-box" id="upload-makan-box">
+              <i class="ti ti-bowl-chopsticks" style="font-size:24px;display:block;margin-bottom:6px" aria-hidden="true"></i>
+              <span id="upload-makan-label">Tap untuk unggah foto saat pemberian makan</span>
+            </div>
+            <div class="upload-options" style="margin-top:8px">
+              <button class="upload-opt" onclick="triggerUpload('makan-kamera')">
+                <i class="ti ti-camera" aria-hidden="true"></i>Kamera
+              </button>
+              <button class="upload-opt" onclick="triggerUpload('makan-galeri')">
+                <i class="ti ti-photo" aria-hidden="true"></i>Galeri
+              </button>
+              <button class="upload-opt" onclick="openGDrive('makan')">
+                <i class="ti ti-brand-google-drive" aria-hidden="true"></i>Google Drive
+              </button>
+            </div>
+            <input type="file" id="makan-kamera" accept="image/*" capture="environment" onchange="handleUpload(this,'makan')">
+            <input type="file" id="makan-galeri" accept="image/*" onchange="handleUpload(this,'makan')">
+          </div>
+        </div>
+
+        <button class="btn-submit btn-wa" id="btn-kirim" onclick="submitAbsen()">
+          <i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Kirim Laporan ke WhatsApp Grup
+        </button>
+
+      </div>
+    </div>
+
+    <!-- PAGE: REKAP -->
+    <div class="page" id="page-rekap">
+      <div class="content">
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap">
+          <button class="period-btn active" id="btn-minggu" onclick="switchPeriod('minggu')">Mingguan</button>
+          <button class="period-btn" id="btn-bulan" onclick="switchPeriod('bulan')">Bulanan</button>
+        </div>
+
+        <div class="stat-grid" id="recap-stats">
+          <div class="stat-card"><div class="stat-num" id="stat-laporan">0</div><div class="stat-label">Total Laporan</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-deteni">0</div><div class="stat-label">Deteni Tercatat</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-aman">0</div><div class="stat-label">Kondisi Aman</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-deport">0</div><div class="stat-label">Sudah Dideportasi</div></div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-table" aria-hidden="true"></i> Rekap Data Deteni</div>
+        <div style="overflow-x:auto">
+          <table class="recap-table" id="recap-table">
+            <thead>
+              <tr>
+                <th>Nama Deteni</th>
+                <th>WN</th>
+                <th>Status</th>
+                <th>Tgl Deportasi</th>
+                <th>Kondisi Keamanan</th>
+                <th>Petugas</th>
+              </tr>
+            </thead>
+            <tbody id="recap-tbody"></tbody>
+          </table>
+        </div>
+        <div id="recap-empty" class="alert-box alert-info" style="margin-top:12px">
+          <i class="ti ti-info-circle" aria-hidden="true"></i>
+          <div>Belum ada data laporan. Data akan muncul setelah petugas mengisi absen.</div>
+        </div>
+
+        <div style="margin-top:16px">
+          <button class="btn-submit" onclick="exportRecap()" style="background: var(--navy)">
+            <i class="ti ti-download" aria-hidden="true"></i> Unduh Rekap (CSV)
+          </button>
+        </div>
+
+        <div class="section-title" style="margin-top:20px"><i class="ti ti-qrcode" aria-hidden="true"></i> QR Code & Link</div>
+        <div class="card">
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:10px">Link absen petugas (untuk dijadikan QR Code di dinding kantor):</p>
+          <div class="link-display" id="absen-link-display">https://bit.ly/absen-piket-deteni</div>
+          <p style="font-size:13px; color:var(--text-muted); margin:12px 0 6px">Link rekap (hanya untuk akun admin Google):</p>
+          <div class="link-display">https://bit.ly/rekap-piket-deteni — <em>Akses: Admin Only</em></div>
+          <button class="btn-secondary" onclick="copyLink()">
+            <i class="ti ti-copy" aria-hidden="true"></i> Salin Link Absen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: ADMIN -->
+    <div class="page" id="page-admin">
+      <div class="content">
+        <div class="alert-box alert-warning">
+          <i class="ti ti-lock" aria-hidden="true"></i>
+          <div>Halaman ini hanya untuk <strong>administrator</strong>. Pengaturan di sini mempengaruhi seluruh sistem.</div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Pengaturan WhatsApp Grup</div>
+        <div class="card">
+          <div class="form-row">
+            <label class="form-label">Link Grup WhatsApp Aktif</label>
+            <input type="text" id="wa-link-input" placeholder="https://chat.whatsapp.com/...">
+            <p style="font-size:12px; color:var(--text-muted); margin-top:6px">Link saat ini: <strong id="wa-link-current">https://chat.whatsapp.com/B6zSADqiClA52UeFWdCESg</strong></p>
+          </div>
+          <button class="btn-secondary" onclick="saveWALink()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Simpan Link Grup</button>
+        </div>
+
+        <div class="section-title"><i class="ti ti-brand-google" aria-hidden="true"></i> Integrasi Google</div>
+        <div class="card">
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Akun Google Admin</div>
+              <div class="settings-sub" id="google-account-display">admin.imigrasi@gmail.com</div>
+            </div>
+            <button class="btn-secondary" style="width:auto; padding:7px 12px; margin:0; font-size:12px" onclick="gantiAkunGoogle()">Ganti</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Google Sheets (Rekap)</div>
+              <div class="settings-sub">Data absen tersimpan otomatis ke Google Sheets</div>
+            </div>
+            <span class="status-badge" id="badge-sheets" style="background:#faeeda;color:#854f0b"><i class="ti ti-clock" style="font-size:12px"></i> Belum</span>
+          </div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-settings-2" aria-hidden="true"></i> Pengaturan Sistem</div>
+        <div class="card">
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Interval laporan</div>
+              <div class="settings-sub">Setiap berapa jam petugas harus lapor</div>
+            </div>
+            <select style="width:80px">
+              <option>1 Jam</option>
+              <option>2 Jam</option>
+              <option>3 Jam</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Notif reminder ke petugas</div>
+              <div class="settings-sub">Kirim pesan pengingat via WhatsApp</div>
+            </div>
+            <span class="status-badge badge-blue">Segera</span>
+          </div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-table-import" aria-hidden="true"></i> Koneksi Google Sheets</div>
+        <div class="card">
+          <div class="alert-box alert-info" style="margin-bottom:12px">
+            <i class="ti ti-info-circle"></i>
+            <div>Setelah deploy Apps Script, paste URL-nya di sini. Data laporan akan langsung masuk ke Google Sheets setiap kali petugas submit.</div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">URL Apps Script (Web App)</label>
+            <input type="text" id="apps-script-url-input" placeholder="https://script.google.com/macros/s/...">
+            <p style="font-size:12px; color:#6b7280; margin-top:6px">Status: <strong id="sheets-status-text" style="color:#854f0b">Belum terhubung</strong></p>
+          </div>
+          <button class="btn-secondary" onclick="saveAppsScriptUrl()" style="background:#0f2d4a;color:#fff;border-color:#0f2d4a">
+            <i class="ti ti-device-floppy"></i> Simpan & Hubungkan
+          </button>
+          <button class="btn-secondary" onclick="testSheetsConnection()" style="margin-top:6px">
+            <i class="ti ti-plug"></i> Test Koneksi
+          </button>
+        </div>
+
+        <div class="section-title"><i class="ti ti-chart-bar" aria-hidden="true"></i> Lihat Rekap Google Sheets</div>
+        <div class="card">
+          <p style="font-size:14px; color:#374151; margin-bottom:10px">Klik tombol di bawah untuk membuka rekap lengkap di Google Sheets Anda.</p>
+          <button class="btn-submit" onclick="bukaGoogleSheets()" style="background:#1a7a4a">
+            <i class="ti ti-table"></i> Buka Rekap di Google Sheets
+          </button>
+          <div id="sheets-link-display" style="display:none; margin-top:10px; font-size:12px; color:#6b7280; word-break:break-all;"></div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-info-circle" aria-hidden="true"></i> Panduan Setup (3 Langkah)</div>
+        <div class="card">
+          <div style="font-size:14px; color:#374151; line-height:1.8">
+            <div style="padding:10px 0; border-bottom:1px solid #e5e7eb">
+              <strong style="color:#0f2d4a">① Buat Google Sheets</strong><br>
+              Buka <a href="https://sheets.new" target="_blank" style="color:#185fa5">sheets.new</a> → beri nama <em>"Rekap Piket Deteni"</em>
+            </div>
+            <div style="padding:10px 0; border-bottom:1px solid #e5e7eb">
+              <strong style="color:#0f2d4a">② Buka Apps Script</strong><br>
+              Di Sheets: menu <strong>Ekstensi → Apps Script</strong> → hapus kode lama → paste kode dari file <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">apps-script.gs</code> yang sudah diunduh
+            </div>
+            <div style="padding:10px 0; border-bottom:1px solid #e5e7eb">
+              <strong style="color:#0f2d4a">③ Deploy sebagai Web App</strong><br>
+              Klik <strong>Deploy → New deployment</strong> → pilih tipe <strong>Web App</strong> → <em>Execute as: Me</em> → <em>Who has access: Anyone</em> → klik <strong>Deploy</strong> → copy URL-nya
+            </div>
+            <div style="padding:10px 0">
+              <strong style="color:#0f2d4a">④ Paste URL di atas</strong><br>
+              Tempel URL tadi di kolom "URL Apps Script" → Simpan & Hubungkan ✅
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay hidden" id="success-overlay">
+  <div class="success-card">
+    <div class="success-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></div>
+    <h2 style="font-size:18px;font-weight:500;margin-bottom:8px">Laporan Terkirim!</h2>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">Laporan piket telah berhasil dikirim ke grup WhatsApp. Atasan dapat memantau langsung.</p>
+    <div id="foto-preview-section" style="margin-bottom:10px;text-align:left"></div>
+    <div class="wa-preview" id="wa-preview-text"></div>
+    <button class="btn-submit btn-wa" style="margin-top:14px" onclick="openWAGroup()">
+      <i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Buka Grup WhatsApp
+    </button>
+    <button class="btn-secondary" onclick="resetForm()">Isi Laporan Baru</button>
+  </div>
+</div>
+
+<script>
+let detaineeCount = 0;
+let detaineeData = [];
+let reportData = [];
+let currentPeriod = 'minggu';
+let waGroupLink = 'https://chat.whatsapp.com/B6zSADqiClA52UeFWdCESg';
+let uploadedFiles = { kondisi: null, makan: null };
+let APPS_SCRIPT_URL = '';  // diisi setelah deploy Apps Script
+
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const d = now.toLocaleDateString('id-ID', {weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('live-clock').childNodes[0].nodeValue = t;
+  document.getElementById('live-date').textContent = d;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'rekap') renderRecap();
+}
+
+function selectRadio(el, groupId, colorClass) {
+  document.querySelectorAll(`#${groupId} .radio-option`).forEach(opt => {
+    opt.className = 'radio-option';
+  });
+  el.classList.add(colorClass);
+  el.querySelector('input').checked = true;
+}
+
+function toggleKondisi(state) {
+  const box = document.getElementById('keterangan-tidak-aman');
+  box.classList.toggle('hidden', state === 'aman');
+}
+
+function addDetainee() {
+  detaineeCount++;
+  const id = detaineeCount;
+  const container = document.getElementById('detainee-list');
+  const div = document.createElement('div');
+  div.className = 'detainee-card';
+  div.id = 'detainee-' + id;
+  div.innerHTML = `
+    <div class="detainee-header">
+      <div>
+        <div class="detainee-name">Deteni #${id}</div>
+        <div class="detainee-meta">Isi data lengkap di bawah ini</div>
+      </div>
+      <button onclick="removeDetainee(${id})" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nama Deteni / Tahanan <span class="required">*</span></label>
+      <input type="text" id="det-nama-${id}" placeholder="Nama lengkap deteni">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Jenis Kelamin <span class="required">*</span></label>
+      <div class="radio-group" id="jk-group-${id}">
+        <label class="radio-option" onclick="selectRadio(this,'jk-group-${id}','selected-blue')">
+          <input type="radio" name="jk-${id}" value="Laki-laki"> <i class="ti ti-gender-male" style="font-size:15px"></i> Laki-laki
+        </label>
+        <label class="radio-option" onclick="selectRadio(this,'jk-group-${id}','selected-red')">
+          <input type="radio" name="jk-${id}" value="Perempuan"> <i class="ti ti-gender-female" style="font-size:15px"></i> Perempuan
+        </label>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Warga Negara <span class="required">*</span></label>
+      <input type="text" id="det-wn-${id}" placeholder="Contoh: Myanmar, Bangladesh, Vietnam...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Status Penahanan <span class="required">*</span></label>
+      <div class="radio-group" id="status-group-${id}">
+        <label class="radio-option" onclick="selectRadio(this,'status-group-${id}','selected-blue'); toggleDeport(${id},'tidak')">
+          <input type="radio" name="status-${id}" value="Masih dalam masa penahanan"> <i class="ti ti-lock" style="font-size:15px"></i> Masih dalam masa penahanan
+        </label>
+        <label class="radio-option" onclick="selectRadio(this,'status-group-${id}','selected-green'); toggleDeport(${id},'ya')">
+          <input type="radio" name="status-${id}" value="Sudah dideportasi"> <i class="ti ti-plane-departure" style="font-size:15px"></i> Deteni sudah dideportasi
+        </label>
+      </div>
+    </div>
+    <div id="deport-detail-${id}" class="hidden">
+      <div class="form-row">
+        <label class="form-label">Tanggal Pendeportasian <span class="required">*</span></label>
+        <input type="date" id="det-deport-tgl-${id}">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Pukul / Jam Pendeportasian <span class="required">*</span></label>
+        <input type="time" id="det-deport-jam-${id}">
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function removeDetainee(id) {
+  const el = document.getElementById('detainee-' + id);
+  if (el) el.remove();
+}
+
+function toggleDeport(id, state) {
+  document.getElementById(`deport-detail-${id}`).classList.toggle('hidden', state === 'tidak');
+}
+
+function triggerUpload(inputId) {
+  document.getElementById(inputId).click();
+}
+
+function handleUpload(input, type) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataUrl = e.target.result;
+      uploadedFiles[type] = { name: file.name, dataUrl: dataUrl };
+      const label = document.getElementById(`upload-${type}-label`);
+      const box = document.getElementById(`upload-${type}-box`);
+      // Tampilkan thumbnail preview di dalam upload box
+      box.innerHTML = `
+        <img src="${dataUrl}" style="max-width:100%;max-height:160px;border-radius:8px;display:block;margin:0 auto 6px;" alt="Preview foto">
+        <span style="color:var(--green-ok);font-size:12px">✓ ${file.name}</span>
+      `;
+      box.style.borderColor = 'var(--green-ok)';
+      box.style.background = '#e8f5ee';
+      box.style.padding = '10px';
+    };
+    reader.readAsDataURL(file);
   }
 }
 
-// ── GET: ambil data rekap (opsional, untuk ditampilkan di web) ──
-function doGet(e) {
-  const action = e.parameter.action || 'rekap';
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function openGDrive(type) {
+  uploadedFiles[type] = 'Google Drive (Dipilih dari Drive)';
+  const label = document.getElementById(`upload-${type}-label`);
+  const box = document.getElementById(`upload-${type}-box`);
+  label.textContent = 'Foto dipilih dari Google Drive ✓';
+  box.style.borderColor = 'var(--green-ok)';
+  box.style.background = '#e8f5ee';
+}
 
-  if (action === 'rekap') {
-    const period = e.parameter.period || 'minggu';
-    const shLap  = ss.getSheetByName(SHEET_LAPORAN);
-    if (!shLap) return jsonResponse({ rows: [] });
-
-    const rows = shLap.getDataRange().getValues();
-    const now  = new Date();
-    const cutoff = period === 'bulan'
-      ? new Date(now.getFullYear(), now.getMonth(), 1)
-      : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const result = [];
-    for (let i = 1; i < rows.length; i++) {
-      const tglStr = rows[i][1]; // format dd/mm/yyyy
-      const parts  = tglStr.split('/');
-      const rowDate = new Date(parts[2], parts[1]-1, parts[0]);
-      if (rowDate >= cutoff) {
-        result.push({
-          id:            rows[i][0],
-          tanggal:       rows[i][1],
-          jam:           rows[i][2],
-          jamPiket:      rows[i][3],
-          petugas:       rows[i][4],
-          kondisi:       rows[i][7],
-          jumlahDeteni:  rows[i][9]
-        });
-      }
-    }
-    return jsonResponse({ rows: result });
+function getDetaineeList() {
+  const list = [];
+  for (let i = 1; i <= detaineeCount; i++) {
+    const el = document.getElementById('detainee-' + i);
+    if (!el) continue;
+    const nama = document.getElementById(`det-nama-${i}`)?.value || '';
+    const jk = document.querySelector(`input[name="jk-${i}"]:checked`)?.value || '';
+    const wn = document.getElementById(`det-wn-${i}`)?.value || '';
+    const status = document.querySelector(`input[name="status-${i}"]:checked`)?.value || '';
+    const deportTgl = document.getElementById(`det-deport-tgl-${i}`)?.value || '';
+    const deportJam = document.getElementById(`det-deport-jam-${i}`)?.value || '';
+    if (nama) list.push({ nama, jk, wn, status, deportTgl, deportJam });
   }
-
-  return jsonResponse({ status: 'ok' });
+  return list;
 }
 
-// ── Helper: buat / ambil sheet dengan header ─────────────────
-function getOrCreateSheet(ss, name, headers) {
-  let sh = ss.getSheetByName(name);
-  if (!sh) {
-    sh = ss.insertSheet(name);
-    sh.appendRow(headers);
-    formatHeader(sh);
+function submitAbsen() {
+  const petugas = document.getElementById('nama-petugas').value.trim();
+  const waPetugas = document.getElementById('wa-petugas').value.trim();
+  const jamPiket = document.getElementById('jam-piket').value;
+  const statusPetugas = document.querySelector('input[name="status-petugas"]:checked')?.value;
+  const kondisi = document.querySelector('input[name="kondisi"]:checked')?.value;
+  const keteranganTA = document.getElementById('isi-tidak-aman').value.trim();
+
+  if (!petugas || !waPetugas || !jamPiket || !statusPetugas || !kondisi) {
+    alert('Harap isi semua data wajib yang bertanda *');
+    return;
   }
-  return sh;
-}
-
-function formatHeader(sh) {
-  const range = sh.getRange(1, 1, 1, sh.getLastColumn());
-  range.setBackground('#0f2d4a')
-       .setFontColor('#ffffff')
-       .setFontWeight('bold')
-       .setFontSize(11);
-  sh.setFrozenRows(1);
-}
-
-function headerLaporan() {
-  return [
-    'ID Laporan', 'Tanggal', 'Jam Lapor', 'Jam Piket',
-    'Nama Petugas', 'WA Petugas', 'Status Petugas',
-    'Kondisi Keamanan', 'Keterangan TA',
-    'Jumlah Deteni', 'Foto Kondisi', 'Foto Makan',
-    'Timestamp Server'
-  ];
-}
-
-function headerDeteni() {
-  return [
-    'ID Laporan', 'Tanggal', 'Jam', 'Petugas',
-    'Nama Deteni', 'Jenis Kelamin', 'Warga Negara',
-    'Status Penahanan', 'Tgl Deportasi', 'Jam Deportasi',
-    'Kondisi Keamanan'
-  ];
-}
-
-// ── Rekap otomatis: hitung statistik per minggu & bulan ──────
-function updateRekap(ss) {
-  let sh = ss.getSheetByName(SHEET_REKAP);
-  if (!sh) {
-    sh = ss.insertSheet(SHEET_REKAP);
+  if (kondisi === 'TIDAK AMAN' && !keteranganTA) {
+    alert('Harap isi keterangan ketidakamanan');
+    return;
   }
-  sh.clearContents();
-
-  const shLap = ss.getSheetByName(SHEET_LAPORAN);
-  if (!shLap || shLap.getLastRow() < 2) {
-    sh.getRange(1,1).setValue('Belum ada data laporan.');
+  if (!uploadedFiles.kondisi) {
+    alert('Harap unggah foto kondisi deteni');
     return;
   }
 
-  const rows = shLap.getDataRange().getValues().slice(1); // skip header
-  const now  = new Date();
+  const deteineeList = getDetaineeList();
+  const now = new Date();
+  const tgl = now.toLocaleDateString('id-ID');
+  const jam = now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'});
 
-  const periodDefs = [
-    { label: 'Minggu Ini',  cutoff: new Date(now.getTime() - 7*24*60*60*1000) },
-    { label: 'Bulan Ini',   cutoff: new Date(now.getFullYear(), now.getMonth(), 1) },
-    { label: 'Semua Data',  cutoff: new Date(2000, 0, 1) }
-  ];
+  const entry = { petugas, waPetugas, jamPiket, statusPetugas, kondisi, keteranganTA, deteineeList, tgl, jam };
+  reportData.push(entry);
+  try { localStorage.setItem('piketReportData', JSON.stringify(reportData)); } catch(e) {}
 
-  let output = [
-    ['REKAP OTOMATIS — Sistem Piket Deteni', '', ''],
-    ['Diperbarui:', Utilities.formatDate(now, 'Asia/Jakarta', 'dd/MM/yyyy HH:mm'), ''],
-    ['', '', ''],
-    ['Periode', 'Total Laporan', 'Jml Deteni', 'Kondisi Aman', 'Kondisi Tidak Aman']
-  ];
+  // Kirim ke Google Sheets via Apps Script
+  if (APPS_SCRIPT_URL) {
+    const payload = {
+      tanggal: tgl,
+      jam: jam,
+      jamPiket: jamPiket,
+      petugas: petugas,
+      waPetugas: waPetugas,
+      statusPetugas: statusPetugas,
+      kondisi: kondisi,
+      keteranganTA: keteranganTA || '-',
+      jumlahDeteni: deteineeList.length,
+      deteniJson: JSON.stringify(deteineeList),
+      fotoKondisi: uploadedFiles.kondisi ? uploadedFiles.kondisi.name : '-',
+      fotoMakan: uploadedFiles.makan ? uploadedFiles.makan.name : '-'
+    };
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(e => console.warn('Sheets error:', e));
+  }
 
-  periodDefs.forEach(function(p) {
-    const filtered = rows.filter(function(r) {
-      const parts = String(r[1]).split('/');
-      if (parts.length < 3) return false;
-      const d = new Date(parts[2], parts[1]-1, parts[0]);
-      return d >= p.cutoff;
+  let msg = `🛡️ *LAPORAN PIKET DETENI*\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `📅 Tanggal: ${tgl}\n`;
+  msg += `🕐 Pukul: ${jam}\n`;
+  msg += `⏰ Jam Piket: ${jamPiket}\n\n`;
+  msg += `👮 *DATA PETUGAS*\n`;
+  msg += `Nama: ${petugas}\n`;
+  msg += `WA: ${waPetugas}\n`;
+  msg += `Status: ${statusPetugas}\n\n`;
+  if (deteineeList.length > 0) {
+    msg += `👤 *DATA DETENI (${deteineeList.length} orang)*\n`;
+    deteineeList.forEach((d, idx) => {
+      msg += `${idx+1}. ${d.nama} | ${d.jk} | WN: ${d.wn}\n   Status: ${d.status}`;
+      if (d.status === 'Sudah dideportasi' && d.deportTgl) msg += ` | Deportasi: ${d.deportTgl} pukul ${d.deportJam}`;
+      msg += `\n`;
     });
-    const aman   = filtered.filter(function(r){ return r[7] === 'AMAN'; }).length;
-    const tAman  = filtered.filter(function(r){ return r[7] === 'TIDAK AMAN'; }).length;
-    const deteni = filtered.reduce(function(sum, r){ return sum + (Number(r[9])||0); }, 0);
-    output.push([p.label, filtered.length, deteni, aman, tAman]);
-  });
+    msg += `\n`;
+  }
+  msg += `🛡️ *KONDISI KEAMANAN: ${kondisi}*\n`;
+  if (kondisi === 'TIDAK AMAN') msg += `⚠️ Keterangan: ${keteranganTA}\n`;
+  msg += `\n📸 Foto kondisi: ${uploadedFiles.kondisi ? uploadedFiles.kondisi.name : '-'}\n`;
+  if (uploadedFiles.makan) msg += `🍽️ Foto pemberian makan: ${uploadedFiles.makan.name}\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `✅ _Laporan otomatis dari Sistem Piket Deteni_`;
 
-  output.push(['', '', '', '', '']);
-  output.push(['Detail per Petugas (Semua Data)', '', '', '', '']);
-  output.push(['Nama Petugas', 'Total Laporan', 'Aman', 'Tidak Aman', 'Rata-rata Deteni']);
+  document.getElementById('wa-preview-text').textContent = msg;
 
-  // Group by petugas
-  const byPetugas = {};
-  rows.forEach(function(r) {
-    const nama = r[4];
-    if (!byPetugas[nama]) byPetugas[nama] = { total:0, aman:0, tAman:0, deteni:0 };
-    byPetugas[nama].total++;
-    if (r[7]==='AMAN') byPetugas[nama].aman++;
-    else byPetugas[nama].tAman++;
-    byPetugas[nama].deteni += (Number(r[9])||0);
-  });
-  Object.keys(byPetugas).forEach(function(nama) {
-    const d = byPetugas[nama];
-    output.push([nama, d.total, d.aman, d.tAman,
-      (d.deteni / d.total).toFixed(1)]);
-  });
+  // Tampilkan preview foto di overlay
+  const fotoSection = document.getElementById('foto-preview-section');
+  fotoSection.innerHTML = '';
+  if (uploadedFiles.kondisi && uploadedFiles.kondisi.dataUrl) {
+    fotoSection.innerHTML += `<div style="margin-bottom:10px"><p style="font-size:12px;color:#555;margin-bottom:4px;font-weight:600">📸 Foto Kondisi Deteni:</p><img src="${uploadedFiles.kondisi.dataUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97" alt="Foto kondisi"><button onclick="downloadFoto('kondisi')" style="width:100%;margin-top:6px;padding:7px;background:#1a7a4a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ Simpan Foto Kondisi ke HP</button></div>`;
+  }
+  if (uploadedFiles.makan && uploadedFiles.makan.dataUrl) {
+    fotoSection.innerHTML += `<div style="margin-bottom:10px"><p style="font-size:12px;color:#555;margin-bottom:4px;font-weight:600">🍽️ Foto Pemberian Makan:</p><img src="${uploadedFiles.makan.dataUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97" alt="Foto makan"><button onclick="downloadFoto('makan')" style="width:100%;margin-top:6px;padding:7px;background:#1a7a4a;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">⬇️ Simpan Foto Makan ke HP</button></div>`;
+  }
+  if (fotoSection.innerHTML) {
+    fotoSection.insertAdjacentHTML('afterbegin', `<div style="background:#fffbe6;border:1px solid #fac775;border-radius:8px;padding:8px 10px;font-size:12px;color:#7a4a00;margin-bottom:10px">⚠️ <strong>Cara kirim foto:</strong> Simpan foto ke HP → buka WhatsApp Grup → kirim teks laporan + lampirkan foto.</div>`);
+  }
 
-  sh.getRange(1, 1, output.length, 5).setValues(output);
-  sh.getRange(1,1,1,5).merge().setBackground('#0f2d4a').setFontColor('#fff').setFontWeight('bold').setFontSize(13);
-  sh.getRange(4,1,1,5).setBackground('#c9a227').setFontWeight('bold');
-  sh.autoResizeColumns(1,5);
+  document.getElementById('success-overlay').classList.remove('hidden');
 }
 
-// ── JSON response helper ──────────────────────────────────────
-function jsonResponse(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+function openWAGroup() {
+  const msg = document.getElementById('wa-preview-text').textContent;
+  const encoded = encodeURIComponent(msg);
+  window.open(`https://wa.me/?text=${encoded}`, '_blank');
 }
+
+function downloadFoto(type) {
+  const file = uploadedFiles[type];
+  if (!file || !file.dataUrl) return;
+  const a = document.createElement('a');
+  a.href = file.dataUrl;
+  a.download = file.name || ('foto-' + type + '-' + Date.now() + '.jpg');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function resetForm() {
+  document.getElementById('success-overlay').classList.add('hidden');
+  document.getElementById('nama-petugas').value = '';
+  document.getElementById('wa-petugas').value = '';
+  document.getElementById('jam-piket').value = '';
+  document.querySelectorAll('.radio-option').forEach(el => el.className = 'radio-option');
+  document.querySelectorAll('input[type=radio]').forEach(el => el.checked = false);
+  document.getElementById('keterangan-tidak-aman').classList.add('hidden');
+  document.getElementById('isi-tidak-aman').value = '';
+  document.getElementById('detainee-list').innerHTML = '';
+  detaineeCount = 0;
+  uploadedFiles = { kondisi: null, makan: null };
+  const uploadDefaults = {
+    kondisi: { icon: 'ti-camera-plus', label: 'Tap untuk unggah foto kondisi' },
+    makan: { icon: 'ti-bowl-chopsticks', label: 'Tap untuk unggah foto saat pemberian makan' }
+  };
+  ['kondisi','makan'].forEach(t => {
+    const box = document.getElementById(`upload-${t}-box`);
+    box.innerHTML = `<i class="ti ${uploadDefaults[t].icon}" style="font-size:24px;display:block;margin-bottom:6px" aria-hidden="true"></i><span id="upload-${t}-label">${uploadDefaults[t].label}</span>`;
+    box.style.borderColor = '';
+    box.style.background = '';
+    box.style.padding = '';
+  });
+}
+
+function renderRecap() {
+  try {
+    const saved = localStorage.getItem('piketReportData');
+    if (saved) reportData = JSON.parse(saved);
+  } catch(e) {}
+
+  const tbody = document.getElementById('recap-tbody');
+  const empty = document.getElementById('recap-empty');
+  tbody.innerHTML = '';
+
+  let filtered = reportData;
+  const now = new Date();
+  if (currentPeriod === 'minggu') {
+    const weekAgo = new Date(now - 7 * 86400000);
+    filtered = reportData.filter(r => new Date(r.tgl.split('/').reverse().join('-')) >= weekAgo);
+  } else {
+    const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1);
+    filtered = reportData.filter(r => new Date(r.tgl.split('/').reverse().join('-')) >= monthAgo);
+  }
+
+  let totalDeteni = 0, totalAman = 0, totalDeport = 0;
+  filtered.forEach(r => {
+    totalDeteni += (r.deteineeList || []).length;
+    if (r.kondisi === 'AMAN') totalAman++;
+    (r.deteineeList || []).forEach(d => { if (d.status === 'Sudah dideportasi') totalDeport++; });
+    (r.deteineeList || []).forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.nama}</td>
+        <td>${d.wn}</td>
+        <td><span class="status-badge ${d.status.includes('deportasi') ? 'badge-green' : 'badge-blue'}">${d.status.includes('deportasi') ? 'Dideportasi' : 'Ditahan'}</span></td>
+        <td>${d.deportTgl ? d.deportTgl + ' ' + d.deportJam : '-'}</td>
+        <td><span class="status-badge ${r.kondisi === 'AMAN' ? 'badge-green' : 'badge-red'}">${r.kondisi}</span></td>
+        <td>${r.petugas}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+
+  document.getElementById('stat-laporan').textContent = filtered.length;
+  document.getElementById('stat-deteni').textContent = totalDeteni;
+  document.getElementById('stat-aman').textContent = totalAman;
+  document.getElementById('stat-deport').textContent = totalDeport;
+  empty.classList.toggle('hidden', filtered.length > 0);
+}
+
+function switchPeriod(p) {
+  currentPeriod = p;
+  document.getElementById('btn-minggu').classList.toggle('active', p === 'minggu');
+  document.getElementById('btn-bulan').classList.toggle('active', p === 'bulan');
+  renderRecap();
+}
+
+function exportRecap() {
+  let csv = 'Nama Deteni,Warga Negara,Status,Tanggal Deportasi,Jam Deportasi,Kondisi Keamanan,Petugas,Jam Piket,Tanggal Laporan\n';
+  reportData.forEach(r => {
+    (r.deteineeList || []).forEach(d => {
+      csv += `"${d.nama}","${d.wn}","${d.status}","${d.deportTgl||'-'}","${d.deportJam||'-'}","${r.kondisi}","${r.petugas}","${r.jamPiket}","${r.tgl}"\n`;
+    });
+    if ((r.deteineeList||[]).length === 0) {
+      csv += `"(tanpa deteni)","","","","","${r.kondisi}","${r.petugas}","${r.jamPiket}","${r.tgl}"\n`;
+    }
+  });
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `rekap-piket-${currentPeriod}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function copyLink() {
+  navigator.clipboard.writeText('https://bit.ly/absen-piket-deteni').then(() => {
+    alert('Link absen berhasil disalin!');
+  });
+}
+
+function saveWALink() {
+  const val = document.getElementById('wa-link-input').value.trim();
+  if (val) {
+    waGroupLink = val;
+    document.getElementById('wa-link-current').textContent = val;
+    document.getElementById('wa-link-input').value = '';
+    alert('Link grup WhatsApp berhasil diperbarui!');
+  } else {
+    alert('Masukkan link grup WhatsApp yang valid');
+  }
+}
+
+function gantiAkunGoogle() {
+  const current = document.getElementById('google-account-display').textContent;
+  const input = prompt('Masukkan email Google Admin baru:', current);
+  if (input === null) return; // user cancel
+  const trimmed = input.trim();
+  if (!trimmed) {
+    alert('Email tidak boleh kosong.');
+    return;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmed)) {
+    alert('Format email tidak valid. Contoh: admin@gmail.com');
+    return;
+  }
+  document.getElementById('google-account-display').textContent = trimmed;
+  try { localStorage.setItem('googleAdminAccount', trimmed); } catch(e) {}
+  alert('Akun Google Admin berhasil diperbarui ke: ' + trimmed);
+}
+
+try {
+  const saved = localStorage.getItem('piketReportData');
+  if (saved) reportData = JSON.parse(saved);
+} catch(e) {}
+
+try {
+  const savedAccount = localStorage.getItem('googleAdminAccount');
+  if (savedAccount) document.getElementById('google-account-display').textContent = savedAccount;
+} catch(e) {}
+
+try {
+  const savedUrl = localStorage.getItem('appsScriptUrl');
+  if (savedUrl) { APPS_SCRIPT_URL = savedUrl; updateSheetsStatus(true); }
+} catch(e) {}
+
+function saveAppsScriptUrl() {
+  const val = document.getElementById('apps-script-url-input').value.trim();
+  if (!val || !val.startsWith('https://script.google.com')) {
+    alert('URL tidak valid. Harus diawali dengan https://script.google.com/...');
+    return;
+  }
+  APPS_SCRIPT_URL = val;
+  try { localStorage.setItem('appsScriptUrl', val); } catch(e) {}
+  updateSheetsStatus(true);
+  alert('✅ URL berhasil disimpan! Google Sheets sudah terhubung.');
+}
+
+function testSheetsConnection() {
+  if (!APPS_SCRIPT_URL) {
+    alert('Belum ada URL Apps Script. Isi dulu lalu simpan.');
+    return;
+  }
+  const testPayload = {
+    tanggal: 'TEST', jam: 'TEST', jamPiket: 'TEST',
+    petugas: 'Test Koneksi', waPetugas: '08000000000',
+    statusPetugas: 'TEST', kondisi: 'TEST', keteranganTA: '-',
+    jumlahDeteni: 0, deteniJson: '[]', fotoKondisi: '-', fotoMakan: '-',
+    isTest: true
+  };
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(testPayload)
+  }).then(() => {
+    alert('✅ Koneksi berhasil! Cek Google Sheets Anda — baris test sudah masuk (bisa dihapus).');
+    updateSheetsStatus(true);
+  }).catch(e => {
+    alert('❌ Koneksi gagal: ' + e.message);
+  });
+}
+
+function updateSheetsStatus(connected) {
+  const badge = document.getElementById('badge-sheets');
+  const statusText = document.getElementById('sheets-status-text');
+  if (connected) {
+    if (badge) badge.innerHTML = '<i class="ti ti-check" style="font-size:12px"></i> Aktif';
+    if (badge) badge.style = 'background:#e8f5ee;color:#1a7a4a';
+    if (statusText) { statusText.textContent = 'Terhubung ✅'; statusText.style.color = '#1a7a4a'; }
+    const linkEl = document.getElementById('sheets-link-display');
+    if (linkEl) { linkEl.style.display = 'block'; linkEl.textContent = APPS_SCRIPT_URL; }
+  } else {
+    if (badge) badge.innerHTML = '<i class="ti ti-clock" style="font-size:12px"></i> Belum';
+    if (badge) badge.style = 'background:#faeeda;color:#854f0b';
+    if (statusText) { statusText.textContent = 'Belum terhubung'; statusText.style.color = '#854f0b'; }
+  }
+  // Update input field
+  const inp = document.getElementById('apps-script-url-input');
+  if (inp && APPS_SCRIPT_URL) inp.value = APPS_SCRIPT_URL;
+}
+
+function bukaGoogleSheets() {
+  if (!APPS_SCRIPT_URL) {
+    alert('Hubungkan ke Google Sheets dulu di menu Admin → Koneksi Google Sheets.');
+    return;
+  }
+  // Derive spreadsheet URL from script URL isn't possible directly,
+  // so open a prompt to paste the Sheets URL, or store it
+  const sheetsUrl = localStorage.getItem('sheetsUrl');
+  if (sheetsUrl) {
+    window.open(sheetsUrl, '_blank');
+  } else {
+    const url = prompt('Paste URL Google Sheets Anda (buka Sheets → copy dari address bar):');
+    if (url && url.startsWith('https://docs.google.com/spreadsheets')) {
+      localStorage.setItem('sheetsUrl', url);
+      window.open(url, '_blank');
+    } else if (url) {
+      alert('URL tidak valid. Harus diawali https://docs.google.com/spreadsheets/...');
+    }
+  }
+}
+
+</script>
+</body>
+</html>

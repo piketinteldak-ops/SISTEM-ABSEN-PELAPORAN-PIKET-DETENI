@@ -717,9 +717,33 @@ function toggleDeport(id, state) {
 
 function triggerUpload(inputId) { document.getElementById(inputId).click(); }
 
+// ── KOMPRES FOTO (sebelum upload) ─────────────────────────
+function compressImage(dataUrl, maxWidth, quality) {
+  return new Promise(function(resolve) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      // Resize jika lebih besar dari maxWidth
+      if (w > maxWidth) {
+        h = Math.round(h * maxWidth / w);
+        w = maxWidth;
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataUrl;
+  });
+}
+
 // ── IMGBB UPLOAD ───────────────────────────────────────────
 async function uploadToImgBB(dataUrl, filename) {
-  const base64 = dataUrl.split(',')[1];
+  // Kompres foto dulu: max 1024px, kualitas 75% → dari 5MB jadi ~150KB
+  const compressed = await compressImage(dataUrl, 1024, 0.75);
+  const base64 = compressed.split(',')[1];
   const formData = new FormData();
   formData.append('image', base64);
   formData.append('name', filename);
@@ -741,7 +765,7 @@ function handleUpload(input, type) {
     const dataUrl = e.target.result;
     uploadedFiles[type] = { name: file.name, dataUrl: dataUrl, imgbbUrl: null };
 
-    // Tampilkan preview thumbnail
+    // Tampilkan preview thumbnail (pakai versi asli untuk preview)
     const box = document.getElementById('upload-' + type + '-box');
     box.innerHTML = `
       <img src="${dataUrl}" style="max-width:100%;max-height:160px;border-radius:8px;display:block;margin:0 auto 6px;" alt="Preview">
@@ -749,15 +773,16 @@ function handleUpload(input, type) {
     box.style.borderColor = 'var(--green-ok)';
     box.style.background = '#e8f5ee';
 
-    // Upload ke ImgBB langsung
+    // Kompres + upload ke ImgBB langsung
     const statusEl = document.getElementById(type + '-upload-status');
-    statusEl.innerHTML = `<div class="upload-progress"><div class="spinner"></div> Mengupload foto ke server...</div>`;
+    const ukuranMB = (file.size / 1024 / 1024).toFixed(1);
+    statusEl.innerHTML = `<div class="upload-progress"><div class="spinner"></div> Mengompres foto (${ukuranMB}MB) & mengupload...</div>`;
 
     uploadToImgBB(dataUrl, file.name).then(url => {
       uploadedFiles[type].imgbbUrl = url;
-      statusEl.innerHTML = `<div class="foto-link-box"><i class="ti ti-circle-check"></i> Foto berhasil diupload! Akan otomatis terkirim ke grup WA.</div>`;
+      statusEl.innerHTML = `<div class="foto-link-box"><i class="ti ti-circle-check"></i> ✅ Foto siap! Akan otomatis terkirim ke grup WA.</div>`;
     }).catch(err => {
-      statusEl.innerHTML = `<div class="alert-box alert-warning" style="margin:0"><i class="ti ti-alert-triangle"></i> Upload gagal, foto akan dikirim sebagai link alternatif.</div>`;
+      statusEl.innerHTML = `<div class="alert-box alert-warning" style="margin:0"><i class="ti ti-alert-triangle"></i> Upload gagal, coba lagi.</div>`;
       console.warn('ImgBB error:', err);
     });
   };

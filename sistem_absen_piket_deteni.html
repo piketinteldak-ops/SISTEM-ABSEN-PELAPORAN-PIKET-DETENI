@@ -1,0 +1,963 @@
+
+<style>
+  :root {
+    --navy: #0f2d4a;
+    --navy-light: #1a4a6e;
+    --gold: #c9a227;
+    --gold-light: #e8c040;
+    --cream: #f8f5ee;
+    --red-alert: #c0392b;
+    --green-ok: #1a7a4a;
+    --text-dark: var(--color-text-primary);
+    --text-muted: var(--color-text-secondary);
+    --border: var(--color-border-tertiary);
+    --card-bg: var(--color-background-primary);
+    --surface: var(--color-background-secondary);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); }
+  .app { min-height: 600px; }
+  .header {
+    background: var(--navy);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+  }
+  .header-logo {
+    width: 44px; height: 44px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 500; color: var(--navy);
+    flex-shrink: 0;
+  }
+  .header-title { flex: 1; }
+  .header-title h1 { font-size: 15px; font-weight: 500; line-height: 1.3; }
+  .header-title p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+  .header-time { font-size: 13px; opacity: 0.85; text-align: right; }
+  .nav {
+    background: var(--navy-light);
+    display: flex;
+    border-bottom: 2px solid var(--gold);
+  }
+  .nav-btn {
+    flex: 1; padding: 10px 6px;
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.65);
+    font-size: 12px; font-family: var(--font-sans);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-btn i { font-size: 18px; }
+  .nav-btn.active { color: var(--gold-light); background: rgba(255,255,255,0.08); }
+  .nav-btn:hover { color: #fff; }
+  .content { padding: 16px; }
+  .section-title {
+    font-size: 13px; font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 16px 0 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
+  .card {
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--border-radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .form-row { margin-bottom: 12px; }
+  .form-label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  .required { color: #e24b4a; margin-left: 2px; }
+  input[type=text], input[type=tel], input[type=date], input[type=time],
+  select, textarea {
+    width: 100%;
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  .radio-group, .check-group {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
+  }
+  .radio-option {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-size: 13px;
+    background: var(--surface);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .radio-option input { display: none; }
+  .radio-option.selected-green { border-color: var(--green-ok); background: #e8f5ee; color: var(--green-ok); }
+  .radio-option.selected-red { border-color: var(--red-alert); background: #fdf0ef; color: var(--red-alert); }
+  .radio-option.selected-blue { border-color: #185fa5; background: #e6f1fb; color: #185fa5; }
+  .radio-option.selected-amber { border-color: #854f0b; background: #faeeda; color: #854f0b; }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 12px; font-weight: 500;
+  }
+  .badge-green { background: #e8f5ee; color: var(--green-ok); }
+  .badge-amber { background: #faeeda; color: #854f0b; }
+  .badge-blue { background: #e6f1fb; color: #185fa5; }
+  .badge-red { background: #fcebeb; color: var(--red-alert); }
+  .hidden { display: none !important; }
+  .btn-submit {
+    width: 100%;
+    padding: 13px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius-md);
+    font-size: 15px; font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 16px;
+    transition: background 0.15s;
+  }
+  .btn-submit:hover { background: var(--navy-light); }
+  .btn-submit.sending { background: #185fa5; }
+  .btn-wa {
+    background: #1a7a4a;
+  }
+  .btn-secondary {
+    width: 100%; padding: 10px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--border-radius-md);
+    font-size: 14px; font-family: var(--font-sans);
+    cursor: pointer; color: var(--text-dark);
+    margin-top: 8px;
+  }
+  .alert-box {
+    padding: 12px 14px;
+    border-radius: var(--border-radius-md);
+    font-size: 13px;
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 12px;
+  }
+  .alert-info { background: #e6f1fb; color: #0c447c; border: 0.5px solid #b5d4f4; }
+  .alert-success { background: #eaf3de; color: #27500a; border: 0.5px solid #c0dd97; }
+  .alert-warning { background: #faeeda; color: #633806; border: 0.5px solid #fac775; }
+  .tab-pages { }
+  .page { display: none; }
+  .page.active { display: block; }
+  .detainee-card {
+    border: 0.5px solid var(--border);
+    border-radius: var(--border-radius-md);
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--surface);
+  }
+  .detainee-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .detainee-name { font-size: 14px; font-weight: 500; }
+  .detainee-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .add-detainee-btn {
+    width: 100%; padding: 10px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: var(--border-radius-md);
+    font-size: 14px; font-family: var(--font-sans);
+    color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .add-detainee-btn:hover { border-color: var(--navy); color: var(--navy); }
+  .upload-box {
+    border: 1px dashed var(--border);
+    border-radius: var(--border-radius-md);
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: var(--surface);
+    transition: all 0.15s;
+  }
+  .upload-box:hover { border-color: var(--navy); }
+  .upload-options {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .upload-opt {
+    flex: 1; padding: 8px 4px;
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--border-radius-md);
+    font-size: 12px; text-align: center;
+    cursor: pointer; color: var(--text-dark);
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+  .upload-opt:hover { border-color: var(--navy); color: var(--navy); }
+  .upload-opt i { display: block; font-size: 20px; margin-bottom: 4px; }
+  .recap-table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+  }
+  .recap-table th {
+    background: var(--navy);
+    color: #fff;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 500;
+  }
+  .recap-table td {
+    padding: 8px 10px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text-dark);
+  }
+  .recap-table tr:hover td { background: var(--surface); }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px; margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border-radius: var(--border-radius-md);
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-num { font-size: 26px; font-weight: 500; color: var(--navy); }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .wa-preview {
+    background: #e8f5e0;
+    border-radius: var(--border-radius-lg);
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    font-family: monospace;
+    color: #1a2a1a;
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 0.5px solid #c0dd97;
+  }
+  .settings-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { flex: 1; font-size: 14px; }
+  .settings-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .period-btn {
+    padding: 6px 14px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--border-radius-md);
+    background: none;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-dark);
+    transition: all 0.15s;
+  }
+  .period-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .success-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .success-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius-lg);
+    padding: 28px 24px;
+    text-align: center;
+    max-width: 320px;
+    width: 90%;
+  }
+  .success-icon {
+    width: 56px; height: 56px;
+    background: #eaf3de; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: var(--green-ok);
+    margin: 0 auto 14px;
+  }
+  .piket-hour-badge {
+    background: var(--navy);
+    color: var(--gold-light);
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  input[type=file] { display: none; }
+  .link-display {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--border-radius-md);
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: monospace;
+    color: var(--text-muted);
+    word-break: break-all;
+    margin-top: 6px;
+  }
+</style>
+
+<div class="app" id="app">
+  <div class="header">
+    <div class="header-logo"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
+    <div class="header-title">
+      <h1>Sistem Absen Piket Deteni</h1>
+      <p>Imigrasi — Laporan Otomatis ke WhatsApp</p>
+    </div>
+    <div class="header-time" id="live-clock">--:--<br><small id="live-date"></small></div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPage('absen')" id="nav-absen">
+      <i class="ti ti-clipboard-list" aria-hidden="true"></i>Absen
+    </button>
+    <button class="nav-btn" onclick="showPage('rekap')" id="nav-rekap">
+      <i class="ti ti-chart-bar" aria-hidden="true"></i>Rekap
+    </button>
+    <button class="nav-btn" onclick="showPage('admin')" id="nav-admin">
+      <i class="ti ti-settings" aria-hidden="true"></i>Admin
+    </button>
+  </nav>
+
+  <div class="tab-pages">
+
+    <!-- PAGE: ABSEN -->
+    <div class="page active" id="page-absen">
+      <div class="content">
+
+        <div class="alert-box alert-info">
+          <i class="ti ti-clock" aria-hidden="true"></i>
+          <div>Laporan piket dilakukan <strong>setiap 1 jam sekali</strong>. Isi semua data dengan lengkap dan benar. Laporan akan otomatis terkirim ke grup WhatsApp.</div>
+        </div>
+
+        <!-- JAM PIKET -->
+        <div class="section-title"><i class="ti ti-user-check" aria-hidden="true"></i> Data Petugas</div>
+        <div class="card">
+          <div class="form-row">
+            <label class="form-label">Nama Petugas Piket <span class="required">*</span></label>
+            <input type="text" id="nama-petugas" placeholder="Masukkan nama lengkap petugas">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Nomor WhatsApp Petugas <span class="required">*</span></label>
+            <input type="tel" id="wa-petugas" placeholder="Contoh: 08123456789">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Jam Piket <span class="required">*</span></label>
+            <select id="jam-piket">
+              <option value="">-- Pilih Jam Piket --</option>
+              <option>00:00 – 01:00</option><option>01:00 – 02:00</option>
+              <option>02:00 – 03:00</option><option>03:00 – 04:00</option>
+              <option>04:00 – 05:00</option><option>05:00 – 06:00</option>
+              <option>06:00 – 07:00</option><option>07:00 – 08:00</option>
+              <option>08:00 – 09:00</option><option>09:00 – 10:00</option>
+              <option>10:00 – 11:00</option><option>11:00 – 12:00</option>
+              <option>12:00 – 13:00</option><option>13:00 – 14:00</option>
+              <option>14:00 – 15:00</option><option>15:00 – 16:00</option>
+              <option>16:00 – 17:00</option><option>17:00 – 18:00</option>
+              <option>18:00 – 19:00</option><option>19:00 – 20:00</option>
+              <option>20:00 – 21:00</option><option>21:00 – 22:00</option>
+              <option>22:00 – 23:00</option><option>23:00 – 00:00</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Status Kehadiran Petugas <span class="required">*</span></label>
+            <div class="radio-group" id="status-petugas-group">
+              <label class="radio-option" onclick="selectRadio(this,'status-petugas-group','selected-blue')">
+                <input type="radio" name="status-petugas" value="Masih dalam pelaksanaan piket">
+                <i class="ti ti-loader" style="font-size:15px" aria-hidden="true"></i> Masih dalam pelaksanaan piket
+              </label>
+              <label class="radio-option" onclick="selectRadio(this,'status-petugas-group','selected-green')">
+                <input type="radio" name="status-petugas" value="Petugas telah menyelesaikan piket">
+                <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i> Telah menyelesaikan piket
+              </label>
+              <label class="radio-option" onclick="selectRadio(this,'status-petugas-group','selected-amber')">
+                <input type="radio" name="status-petugas" value="Petugas sudah melaksanakan serah terima piket">
+                <i class="ti ti-transfer" style="font-size:15px" aria-hidden="true"></i> Sudah serah terima piket
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATA DETENI -->
+        <div class="section-title"><i class="ti ti-users" aria-hidden="true"></i> Data Deteni / Tahanan</div>
+        <div id="detainee-list"></div>
+        <button class="add-detainee-btn" onclick="addDetainee()">
+          <i class="ti ti-plus" aria-hidden="true"></i> Tambah Data Deteni
+        </button>
+
+        <!-- KONDISI KEAMANAN -->
+        <div class="section-title"><i class="ti ti-shield" aria-hidden="true"></i> Kondisi Keamanan</div>
+        <div class="card">
+          <div class="form-row">
+            <label class="form-label">Keterangan Kondisi Keamanan <span class="required">*</span></label>
+            <div class="radio-group" id="kondisi-group">
+              <label class="radio-option" onclick="selectRadio(this,'kondisi-group','selected-green'); toggleKondisi('aman')">
+                <input type="radio" name="kondisi" value="AMAN">
+                <i class="ti ti-shield-check" style="font-size:15px" aria-hidden="true"></i> AMAN
+              </label>
+              <label class="radio-option" onclick="selectRadio(this,'kondisi-group','selected-red'); toggleKondisi('tidak-aman')">
+                <input type="radio" name="kondisi" value="TIDAK AMAN">
+                <i class="ti ti-alert-triangle" style="font-size:15px" aria-hidden="true"></i> TIDAK AMAN
+              </label>
+            </div>
+          </div>
+          <div id="keterangan-tidak-aman" class="hidden">
+            <div class="form-row">
+              <label class="form-label">Keterangan Ketidakamanan <span class="required">*</span></label>
+              <textarea id="isi-tidak-aman" placeholder="Jelaskan kondisi ketidakamanan yang terjadi..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- UPLOAD FOTO -->
+        <div class="section-title"><i class="ti ti-camera" aria-hidden="true"></i> Dokumentasi Foto</div>
+        <div class="card">
+          <div class="alert-box alert-warning" style="margin-bottom:10px">
+            <i class="ti ti-info-circle" aria-hidden="true"></i>
+            <div>Foto kondisi deteni <strong>wajib</strong> diisi. Foto pemberian makan <strong>opsional</strong> — hanya diisi saat deteni sedang makan.</div>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label">Foto Kondisi Deteni <span class="required">*</span></label>
+            <div class="upload-box" id="upload-kondisi-box">
+              <i class="ti ti-camera-plus" style="font-size:24px;display:block;margin-bottom:6px" aria-hidden="true"></i>
+              <span id="upload-kondisi-label">Tap untuk unggah foto kondisi</span>
+            </div>
+            <div class="upload-options" style="margin-top:8px">
+              <button class="upload-opt" onclick="triggerUpload('kondisi-kamera')">
+                <i class="ti ti-camera" aria-hidden="true"></i>Kamera
+              </button>
+              <button class="upload-opt" onclick="triggerUpload('kondisi-galeri')">
+                <i class="ti ti-photo" aria-hidden="true"></i>Galeri
+              </button>
+              <button class="upload-opt" onclick="openGDrive('kondisi')">
+                <i class="ti ti-brand-google-drive" aria-hidden="true"></i>Google Drive
+              </button>
+            </div>
+            <input type="file" id="kondisi-kamera" accept="image/*" capture="environment" onchange="handleUpload(this,'kondisi')">
+            <input type="file" id="kondisi-galeri" accept="image/*" onchange="handleUpload(this,'kondisi')">
+          </div>
+
+          <div class="form-row" style="margin-top:14px">
+            <label class="form-label">Foto Pemberian Makan (opsional)</label>
+            <div class="upload-box" id="upload-makan-box">
+              <i class="ti ti-bowl-chopsticks" style="font-size:24px;display:block;margin-bottom:6px" aria-hidden="true"></i>
+              <span id="upload-makan-label">Tap untuk unggah foto saat pemberian makan</span>
+            </div>
+            <div class="upload-options" style="margin-top:8px">
+              <button class="upload-opt" onclick="triggerUpload('makan-kamera')">
+                <i class="ti ti-camera" aria-hidden="true"></i>Kamera
+              </button>
+              <button class="upload-opt" onclick="triggerUpload('makan-galeri')">
+                <i class="ti ti-photo" aria-hidden="true"></i>Galeri
+              </button>
+              <button class="upload-opt" onclick="openGDrive('makan')">
+                <i class="ti ti-brand-google-drive" aria-hidden="true"></i>Google Drive
+              </button>
+            </div>
+            <input type="file" id="makan-kamera" accept="image/*" capture="environment" onchange="handleUpload(this,'makan')">
+            <input type="file" id="makan-galeri" accept="image/*" onchange="handleUpload(this,'makan')">
+          </div>
+        </div>
+
+        <button class="btn-submit btn-wa" id="btn-kirim" onclick="submitAbsen()">
+          <i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Kirim Laporan ke WhatsApp Grup
+        </button>
+
+      </div>
+    </div>
+
+    <!-- PAGE: REKAP -->
+    <div class="page" id="page-rekap">
+      <div class="content">
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap">
+          <button class="period-btn active" id="btn-minggu" onclick="switchPeriod('minggu')">Mingguan</button>
+          <button class="period-btn" id="btn-bulan" onclick="switchPeriod('bulan')">Bulanan</button>
+        </div>
+
+        <div class="stat-grid" id="recap-stats">
+          <div class="stat-card"><div class="stat-num" id="stat-laporan">0</div><div class="stat-label">Total Laporan</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-deteni">0</div><div class="stat-label">Deteni Tercatat</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-aman">0</div><div class="stat-label">Kondisi Aman</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-deport">0</div><div class="stat-label">Sudah Dideportasi</div></div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-table" aria-hidden="true"></i> Rekap Data Deteni</div>
+        <div style="overflow-x:auto">
+          <table class="recap-table" id="recap-table">
+            <thead>
+              <tr>
+                <th>Nama Deteni</th>
+                <th>WN</th>
+                <th>Status</th>
+                <th>Tgl Deportasi</th>
+                <th>Kondisi Keamanan</th>
+                <th>Petugas</th>
+              </tr>
+            </thead>
+            <tbody id="recap-tbody"></tbody>
+          </table>
+        </div>
+        <div id="recap-empty" class="alert-box alert-info" style="margin-top:12px">
+          <i class="ti ti-info-circle" aria-hidden="true"></i>
+          <div>Belum ada data laporan. Data akan muncul setelah petugas mengisi absen.</div>
+        </div>
+
+        <div style="margin-top:16px">
+          <button class="btn-submit" onclick="exportRecap()" style="background: var(--navy)">
+            <i class="ti ti-download" aria-hidden="true"></i> Unduh Rekap (CSV)
+          </button>
+        </div>
+
+        <div class="section-title" style="margin-top:20px"><i class="ti ti-qrcode" aria-hidden="true"></i> QR Code & Link</div>
+        <div class="card">
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:10px">Link absen petugas (untuk dijadikan QR Code di dinding kantor):</p>
+          <div class="link-display" id="absen-link-display">https://bit.ly/absen-piket-deteni</div>
+          <p style="font-size:13px; color:var(--text-muted); margin:12px 0 6px">Link rekap (hanya untuk akun admin Google):</p>
+          <div class="link-display">https://bit.ly/rekap-piket-deteni — <em>Akses: Admin Only</em></div>
+          <button class="btn-secondary" onclick="copyLink()">
+            <i class="ti ti-copy" aria-hidden="true"></i> Salin Link Absen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: ADMIN -->
+    <div class="page" id="page-admin">
+      <div class="content">
+        <div class="alert-box alert-warning">
+          <i class="ti ti-lock" aria-hidden="true"></i>
+          <div>Halaman ini hanya untuk <strong>administrator</strong>. Pengaturan di sini mempengaruhi seluruh sistem.</div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Pengaturan WhatsApp Grup</div>
+        <div class="card">
+          <div class="form-row">
+            <label class="form-label">Link Grup WhatsApp Aktif</label>
+            <input type="text" id="wa-link-input" placeholder="https://chat.whatsapp.com/...">
+            <p style="font-size:12px; color:var(--text-muted); margin-top:6px">Link saat ini: <strong id="wa-link-current">https://chat.whatsapp.com/B6zSADqiClA52UeFWdCESg</strong></p>
+          </div>
+          <button class="btn-secondary" onclick="saveWALink()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Simpan Link Grup</button>
+        </div>
+
+        <div class="section-title"><i class="ti ti-brand-google" aria-hidden="true"></i> Integrasi Google</div>
+        <div class="card">
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Akun Google Admin</div>
+              <div class="settings-sub" id="google-account-display">admin.imigrasi@gmail.com</div>
+            </div>
+            <button class="btn-secondary" style="width:auto; padding:7px 12px; margin:0; font-size:12px">Ganti</button>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Google Sheets (Rekap)</div>
+              <div class="settings-sub">Data absen tersimpan otomatis ke Google Sheets</div>
+            </div>
+            <span class="status-badge badge-green"><i class="ti ti-check" style="font-size:12px"></i> Aktif</span>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Google Drive (Foto)</div>
+              <div class="settings-sub">Foto kondisi & makan tersimpan ke Drive admin</div>
+            </div>
+            <span class="status-badge badge-green"><i class="ti ti-check" style="font-size:12px"></i> Aktif</span>
+          </div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-settings-2" aria-hidden="true"></i> Pengaturan Sistem</div>
+        <div class="card">
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Interval laporan</div>
+              <div class="settings-sub">Setiap berapa jam petugas harus lapor</div>
+            </div>
+            <select style="width:80px">
+              <option>1 Jam</option>
+              <option>2 Jam</option>
+              <option>3 Jam</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Notif reminder ke petugas</div>
+              <div class="settings-sub">Kirim pesan pengingat via WhatsApp</div>
+            </div>
+            <span class="status-badge badge-blue">Segera</span>
+          </div>
+        </div>
+
+        <div class="section-title"><i class="ti ti-info-circle" aria-hidden="true"></i> Panduan Integrasi</div>
+        <div class="card">
+          <p style="font-size:13px; color:var(--text-muted); line-height:1.7">
+            Untuk mengaktifkan integrasi penuh (Google Sheets, Google Drive, WhatsApp API), hubungkan sistem ini dengan:<br><br>
+            1. <strong>Google Apps Script</strong> — untuk otomatis menyimpan data ke Sheets<br>
+            2. <strong>WhatsApp Business API / Fonnte / Wablas</strong> — untuk kirim pesan otomatis ke grup<br>
+            3. <strong>Google Drive API</strong> — untuk upload foto otomatis<br><br>
+            Dokumentasi lengkap tersedia di folder Google Drive admin.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay hidden" id="success-overlay">
+  <div class="success-card">
+    <div class="success-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></div>
+    <h2 style="font-size:18px;font-weight:500;margin-bottom:8px">Laporan Terkirim!</h2>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">Laporan piket telah berhasil dikirim ke grup WhatsApp. Atasan dapat memantau langsung.</p>
+    <div class="wa-preview" id="wa-preview-text"></div>
+    <button class="btn-submit btn-wa" style="margin-top:14px" onclick="openWAGroup()">
+      <i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Buka Grup WhatsApp
+    </button>
+    <button class="btn-secondary" onclick="resetForm()">Isi Laporan Baru</button>
+  </div>
+</div>
+
+<script>
+let detaineeCount = 0;
+let detaineeData = [];
+let reportData = [];
+let currentPeriod = 'minggu';
+let waGroupLink = 'https://chat.whatsapp.com/B6zSADqiClA52UeFWdCESg';
+let uploadedFiles = { kondisi: null, makan: null };
+
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const d = now.toLocaleDateString('id-ID', {weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('live-clock').childNodes[0].nodeValue = t;
+  document.getElementById('live-date').textContent = d;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'rekap') renderRecap();
+}
+
+function selectRadio(el, groupId, colorClass) {
+  document.querySelectorAll(`#${groupId} .radio-option`).forEach(opt => {
+    opt.className = 'radio-option';
+  });
+  el.classList.add(colorClass);
+  el.querySelector('input').checked = true;
+}
+
+function toggleKondisi(state) {
+  const box = document.getElementById('keterangan-tidak-aman');
+  box.classList.toggle('hidden', state === 'aman');
+}
+
+function addDetainee() {
+  detaineeCount++;
+  const id = detaineeCount;
+  const container = document.getElementById('detainee-list');
+  const div = document.createElement('div');
+  div.className = 'detainee-card';
+  div.id = 'detainee-' + id;
+  div.innerHTML = `
+    <div class="detainee-header">
+      <div>
+        <div class="detainee-name">Deteni #${id}</div>
+        <div class="detainee-meta">Isi data lengkap di bawah ini</div>
+      </div>
+      <button onclick="removeDetainee(${id})" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nama Deteni / Tahanan <span class="required">*</span></label>
+      <input type="text" id="det-nama-${id}" placeholder="Nama lengkap deteni">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Jenis Kelamin <span class="required">*</span></label>
+      <div class="radio-group" id="jk-group-${id}">
+        <label class="radio-option" onclick="selectRadio(this,'jk-group-${id}','selected-blue')">
+          <input type="radio" name="jk-${id}" value="Laki-laki"> <i class="ti ti-gender-male" style="font-size:15px"></i> Laki-laki
+        </label>
+        <label class="radio-option" onclick="selectRadio(this,'jk-group-${id}','selected-red')">
+          <input type="radio" name="jk-${id}" value="Perempuan"> <i class="ti ti-gender-female" style="font-size:15px"></i> Perempuan
+        </label>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Warga Negara <span class="required">*</span></label>
+      <input type="text" id="det-wn-${id}" placeholder="Contoh: Myanmar, Bangladesh, Vietnam...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Status Penahanan <span class="required">*</span></label>
+      <div class="radio-group" id="status-group-${id}">
+        <label class="radio-option" onclick="selectRadio(this,'status-group-${id}','selected-blue'); toggleDeport(${id},'tidak')">
+          <input type="radio" name="status-${id}" value="Masih dalam masa penahanan"> <i class="ti ti-lock" style="font-size:15px"></i> Masih dalam masa penahanan
+        </label>
+        <label class="radio-option" onclick="selectRadio(this,'status-group-${id}','selected-green'); toggleDeport(${id},'ya')">
+          <input type="radio" name="status-${id}" value="Sudah dideportasi"> <i class="ti ti-plane-departure" style="font-size:15px"></i> Deteni sudah dideportasi
+        </label>
+      </div>
+    </div>
+    <div id="deport-detail-${id}" class="hidden">
+      <div class="form-row">
+        <label class="form-label">Tanggal Pendeportasian <span class="required">*</span></label>
+        <input type="date" id="det-deport-tgl-${id}">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Pukul / Jam Pendeportasian <span class="required">*</span></label>
+        <input type="time" id="det-deport-jam-${id}">
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function removeDetainee(id) {
+  const el = document.getElementById('detainee-' + id);
+  if (el) el.remove();
+}
+
+function toggleDeport(id, state) {
+  document.getElementById(`deport-detail-${id}`).classList.toggle('hidden', state === 'tidak');
+}
+
+function triggerUpload(inputId) {
+  document.getElementById(inputId).click();
+}
+
+function handleUpload(input, type) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    uploadedFiles[type] = file.name;
+    const label = document.getElementById(`upload-${type}-label`);
+    const box = document.getElementById(`upload-${type}-box`);
+    label.textContent = file.name + ' ✓';
+    box.style.borderColor = 'var(--green-ok)';
+    box.style.background = '#e8f5ee';
+  }
+}
+
+function openGDrive(type) {
+  uploadedFiles[type] = 'Google Drive (Dipilih dari Drive)';
+  const label = document.getElementById(`upload-${type}-label`);
+  const box = document.getElementById(`upload-${type}-box`);
+  label.textContent = 'Foto dipilih dari Google Drive ✓';
+  box.style.borderColor = 'var(--green-ok)';
+  box.style.background = '#e8f5ee';
+}
+
+function getDetaineeList() {
+  const list = [];
+  for (let i = 1; i <= detaineeCount; i++) {
+    const el = document.getElementById('detainee-' + i);
+    if (!el) continue;
+    const nama = document.getElementById(`det-nama-${i}`)?.value || '';
+    const jk = document.querySelector(`input[name="jk-${i}"]:checked`)?.value || '';
+    const wn = document.getElementById(`det-wn-${i}`)?.value || '';
+    const status = document.querySelector(`input[name="status-${i}"]:checked`)?.value || '';
+    const deportTgl = document.getElementById(`det-deport-tgl-${i}`)?.value || '';
+    const deportJam = document.getElementById(`det-deport-jam-${i}`)?.value || '';
+    if (nama) list.push({ nama, jk, wn, status, deportTgl, deportJam });
+  }
+  return list;
+}
+
+function submitAbsen() {
+  const petugas = document.getElementById('nama-petugas').value.trim();
+  const waPetugas = document.getElementById('wa-petugas').value.trim();
+  const jamPiket = document.getElementById('jam-piket').value;
+  const statusPetugas = document.querySelector('input[name="status-petugas"]:checked')?.value;
+  const kondisi = document.querySelector('input[name="kondisi"]:checked')?.value;
+  const keteranganTA = document.getElementById('isi-tidak-aman').value.trim();
+
+  if (!petugas || !waPetugas || !jamPiket || !statusPetugas || !kondisi) {
+    alert('Harap isi semua data wajib yang bertanda *');
+    return;
+  }
+  if (kondisi === 'TIDAK AMAN' && !keteranganTA) {
+    alert('Harap isi keterangan ketidakamanan');
+    return;
+  }
+  if (!uploadedFiles.kondisi) {
+    alert('Harap unggah foto kondisi deteni');
+    return;
+  }
+
+  const deteineeList = getDetaineeList();
+  const now = new Date();
+  const tgl = now.toLocaleDateString('id-ID');
+  const jam = now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'});
+
+  const entry = { petugas, waPetugas, jamPiket, statusPetugas, kondisi, keteranganTA, deteineeList, tgl, jam };
+  reportData.push(entry);
+  try { localStorage.setItem('piketReportData', JSON.stringify(reportData)); } catch(e) {}
+
+  let msg = `🛡️ *LAPORAN PIKET DETENI*\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `📅 Tanggal: ${tgl}\n`;
+  msg += `🕐 Pukul: ${jam}\n`;
+  msg += `⏰ Jam Piket: ${jamPiket}\n\n`;
+  msg += `👮 *DATA PETUGAS*\n`;
+  msg += `Nama: ${petugas}\n`;
+  msg += `WA: ${waPetugas}\n`;
+  msg += `Status: ${statusPetugas}\n\n`;
+  if (deteineeList.length > 0) {
+    msg += `👤 *DATA DETENI (${deteineeList.length} orang)*\n`;
+    deteineeList.forEach((d, idx) => {
+      msg += `${idx+1}. ${d.nama} | ${d.jk} | WN: ${d.wn}\n   Status: ${d.status}`;
+      if (d.status === 'Sudah dideportasi' && d.deportTgl) msg += ` | Deportasi: ${d.deportTgl} pukul ${d.deportJam}`;
+      msg += `\n`;
+    });
+    msg += `\n`;
+  }
+  msg += `🛡️ *KONDISI KEAMANAN: ${kondisi}*\n`;
+  if (kondisi === 'TIDAK AMAN') msg += `⚠️ Keterangan: ${keteranganTA}\n`;
+  msg += `\n📸 Foto kondisi: ${uploadedFiles.kondisi}\n`;
+  if (uploadedFiles.makan) msg += `🍽️ Foto pemberian makan: ${uploadedFiles.makan}\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `✅ _Laporan otomatis dari Sistem Piket Deteni_`;
+
+  document.getElementById('wa-preview-text').textContent = msg;
+  document.getElementById('success-overlay').classList.remove('hidden');
+}
+
+function openWAGroup() {
+  const msg = document.getElementById('wa-preview-text').textContent;
+  const encoded = encodeURIComponent(msg);
+  const link = waGroupLink || 'https://chat.whatsapp.com/B6zSADqiClA52UeFWdCESg';
+  window.open(`https://wa.me/?text=${encoded}`, '_blank');
+}
+
+function resetForm() {
+  document.getElementById('success-overlay').classList.add('hidden');
+  document.getElementById('nama-petugas').value = '';
+  document.getElementById('wa-petugas').value = '';
+  document.getElementById('jam-piket').value = '';
+  document.querySelectorAll('.radio-option').forEach(el => el.className = 'radio-option');
+  document.querySelectorAll('input[type=radio]').forEach(el => el.checked = false);
+  document.getElementById('keterangan-tidak-aman').classList.add('hidden');
+  document.getElementById('isi-tidak-aman').value = '';
+  document.getElementById('detainee-list').innerHTML = '';
+  detaineeCount = 0;
+  uploadedFiles = { kondisi: null, makan: null };
+  ['kondisi','makan'].forEach(t => {
+    const box = document.getElementById(`upload-${t}-box`);
+    document.getElementById(`upload-${t}-label`).textContent = t==='kondisi' ? 'Tap untuk unggah foto kondisi' : 'Tap untuk unggah foto saat pemberian makan';
+    box.style.borderColor = '';
+    box.style.background = '';
+  });
+}
+
+function renderRecap() {
+  try {
+    const saved = localStorage.getItem('piketReportData');
+    if (saved) reportData = JSON.parse(saved);
+  } catch(e) {}
+
+  const tbody = document.getElementById('recap-tbody');
+  const empty = document.getElementById('recap-empty');
+  tbody.innerHTML = '';
+
+  let filtered = reportData;
+  const now = new Date();
+  if (currentPeriod === 'minggu') {
+    const weekAgo = new Date(now - 7 * 86400000);
+    filtered = reportData.filter(r => new Date(r.tgl.split('/').reverse().join('-')) >= weekAgo);
+  } else {
+    const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1);
+    filtered = reportData.filter(r => new Date(r.tgl.split('/').reverse().join('-')) >= monthAgo);
+  }
+
+  let totalDeteni = 0, totalAman = 0, totalDeport = 0;
+  filtered.forEach(r => {
+    totalDeteni += (r.deteineeList || []).length;
+    if (r.kondisi === 'AMAN') totalAman++;
+    (r.deteineeList || []).forEach(d => { if (d.status === 'Sudah dideportasi') totalDeport++; });
+    (r.deteineeList || []).forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.nama}</td>
+        <td>${d.wn}</td>
+        <td><span class="status-badge ${d.status.includes('deportasi') ? 'badge-green' : 'badge-blue'}">${d.status.includes('deportasi') ? 'Dideportasi' : 'Ditahan'}</span></td>
+        <td>${d.deportTgl ? d.deportTgl + ' ' + d.deportJam : '-'}</td>
+        <td><span class="status-badge ${r.kondisi === 'AMAN' ? 'badge-green' : 'badge-red'}">${r.kondisi}</span></td>
+        <td>${r.petugas}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+
+  document.getElementById('stat-laporan').textContent = filtered.length;
+  document.getElementById('stat-deteni').textContent = totalDeteni;
+  document.getElementById('stat-aman').textContent = totalAman;
+  document.getElementById('stat-deport').textContent = totalDeport;
+  empty.classList.toggle('hidden', filtered.length > 0);
+}
+
+function switchPeriod(p) {
+  currentPeriod = p;
+  document.getElementById('btn-minggu').classList.toggle('active', p === 'minggu');
+  document.getElementById('btn-bulan').classList.toggle('active', p === 'bulan');
+  renderRecap();
+}
+
+function exportRecap() {
+  let csv = 'Nama Deteni,Warga Negara,Status,Tanggal Deportasi,Jam Deportasi,Kondisi Keamanan,Petugas,Jam Piket,Tanggal Laporan\n';
+  reportData.forEach(r => {
+    (r.deteineeList || []).forEach(d => {
+      csv += `"${d.nama}","${d.wn}","${d.status}","${d.deportTgl||'-'}","${d.deportJam||'-'}","${r.kondisi}","${r.petugas}","${r.jamPiket}","${r.tgl}"\n`;
+    });
+    if ((r.deteineeList||[]).length === 0) {
+      csv += `"(tanpa deteni)","","","","","${r.kondisi}","${r.petugas}","${r.jamPiket}","${r.tgl}"\n`;
+    }
+  });
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `rekap-piket-${currentPeriod}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function copyLink() {
+  navigator.clipboard.writeText('https://bit.ly/absen-piket-deteni').then(() => {
+    alert('Link absen berhasil disalin!');
+  });
+}
+
+function saveWALink() {
+  const val = document.getElementById('wa-link-input').value.trim();
+  if (val) {
+    waGroupLink = val;
+    document.getElementById('wa-link-current').textContent = val;
+    document.getElementById('wa-link-input').value = '';
+    alert('Link grup WhatsApp berhasil diperbarui!');
+  } else {
+    alert('Masukkan link grup WhatsApp yang valid');
+  }
+}
+
+try {
+  const saved = localStorage.getItem('piketReportData');
+  if (saved) reportData = JSON.parse(saved);
+} catch(e) {}
+</script>

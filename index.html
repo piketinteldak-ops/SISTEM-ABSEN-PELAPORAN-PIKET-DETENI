@@ -895,19 +895,19 @@ async function submitAbsen() {
   // Tampilkan foto links di overlay
   const fotoSection = document.getElementById('foto-link-section');
   fotoSection.innerHTML = '';
-  if (uploadedFiles.kondisi?.imgbbUrl) {
+  if (uploadedFiles.kondisi) {
     fotoSection.innerHTML += `
       <div style="margin-bottom:10px">
         <p style="font-size:12px;color:#555;margin-bottom:6px;font-weight:600">📸 Foto Kondisi Deteni:</p>
-        <img src="${uploadedFiles.kondisi.imgbbUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97;max-height:200px;object-fit:cover" alt="Foto kondisi">
+        <img src="${uploadedFiles.kondisi.dataUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97;max-height:200px;object-fit:cover" alt="Foto kondisi">
         <div class="foto-link-box" style="margin-top:6px"><i class="ti ti-link"></i><span>Link foto sudah masuk ke pesan WhatsApp ✅</span></div>
       </div>`;
   }
-  if (uploadedFiles.makan?.imgbbUrl) {
+  if (uploadedFiles.makan) {
     fotoSection.innerHTML += `
       <div style="margin-bottom:10px">
         <p style="font-size:12px;color:#555;margin-bottom:6px;font-weight:600">🍽️ Foto Pemberian Makan:</p>
-        <img src="${uploadedFiles.makan.imgbbUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97;max-height:200px;object-fit:cover" alt="Foto makan">
+        <img src="${uploadedFiles.makan.dataUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97;max-height:200px;object-fit:cover" alt="Foto makan">
         <div class="foto-link-box" style="margin-top:6px"><i class="ti ti-link"></i><span>Link foto sudah masuk ke pesan WhatsApp ✅</span></div>
       </div>`;
   }

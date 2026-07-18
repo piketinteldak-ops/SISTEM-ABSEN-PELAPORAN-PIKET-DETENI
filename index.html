@@ -229,6 +229,39 @@
   }
   .upload-opt:hover { border-color: var(--navy); color: var(--navy); }
   .upload-opt i { display: block; font-size: 26px; margin-bottom: 4px; }
+  .photo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .photo-thumb {
+    position: relative;
+    width: 84px; height: 84px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb .thumb-remove {
+    position: absolute; top: 2px; right: 2px;
+    width: 20px; height: 20px;
+    background: rgba(0,0,0,0.6); color: #fff;
+    border: none; border-radius: 50%;
+    font-size: 12px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .photo-thumb .thumb-status {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 3px 4px;
+    font-size: 9px; text-align: center;
+    color: #fff;
+  }
+  .thumb-status.status-uploading { background: rgba(12,68,124,0.85); }
+  .thumb-status.status-done { background: rgba(26,122,74,0.85); }
+  .thumb-status.status-error { background: rgba(192,57,43,0.85); }
   .recap-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .recap-table th {
     background: var(--navy); color: #fff;
@@ -601,14 +634,14 @@
         <div class="card">
           <div class="alert-box alert-warning" style="margin-bottom:10px">
             <i class="ti ti-info-circle" aria-hidden="true"></i>
-            <div>Foto kondisi deteni <strong>wajib</strong> diisi. Foto pemberian makan <strong>opsional</strong> — hanya diisi saat deteni sedang makan. Foto akan <strong>otomatis terkirim ke grup WhatsApp</strong>.</div>
+            <div>Foto kondisi deteni <strong>wajib</strong> diisi (bisa lebih dari 1 foto). Foto pemberian makan <strong>opsional</strong> — hanya diisi saat deteni sedang makan. Foto akan <strong>otomatis terkirim ke grup WhatsApp</strong>.</div>
           </div>
 
           <div class="form-row">
             <label class="form-label">Foto Kondisi Deteni <span class="required">*</span></label>
             <div class="upload-box" id="upload-kondisi-box">
               <i class="ti ti-camera-plus" style="font-size:24px;display:block;margin-bottom:6px" aria-hidden="true"></i>
-              <span id="upload-kondisi-label">Tap untuk unggah foto kondisi</span>
+              <span id="upload-kondisi-label">Tap tombol di bawah untuk menambah foto (bisa lebih dari 1)</span>
             </div>
             <div class="upload-options" style="margin-top:8px">
               <button class="upload-opt" onclick="triggerUpload('kondisi-kamera')">
@@ -619,15 +652,15 @@
               </button>
             </div>
             <input type="file" id="kondisi-kamera" accept="image/*" capture="environment" onchange="handleUpload(this,'kondisi')">
-            <input type="file" id="kondisi-galeri" accept="image/*" onchange="handleUpload(this,'kondisi')">
-            <div id="kondisi-upload-status"></div>
+            <input type="file" id="kondisi-galeri" accept="image/*" multiple onchange="handleUpload(this,'kondisi')">
+            <div id="kondisi-photo-grid" class="photo-grid"></div>
           </div>
 
           <div class="form-row" style="margin-top:14px">
             <label class="form-label">Foto Pemberian Makan (opsional)</label>
             <div class="upload-box" id="upload-makan-box">
               <i class="ti ti-bowl-chopsticks" style="font-size:24px;display:block;margin-bottom:6px" aria-hidden="true"></i>
-              <span id="upload-makan-label">Tap untuk unggah foto saat pemberian makan</span>
+              <span id="upload-makan-label">Tap tombol di bawah untuk menambah foto (bisa lebih dari 1)</span>
             </div>
             <div class="upload-options" style="margin-top:8px">
               <button class="upload-opt" onclick="triggerUpload('makan-kamera')">
@@ -638,8 +671,8 @@
               </button>
             </div>
             <input type="file" id="makan-kamera" accept="image/*" capture="environment" onchange="handleUpload(this,'makan')">
-            <input type="file" id="makan-galeri" accept="image/*" onchange="handleUpload(this,'makan')">
-            <div id="makan-upload-status"></div>
+            <input type="file" id="makan-galeri" accept="image/*" multiple onchange="handleUpload(this,'makan')">
+            <div id="makan-photo-grid" class="photo-grid"></div>
           </div>
         </div>
 
@@ -821,7 +854,7 @@ let APPS_SCRIPT_URL = localStorage.getItem('appsScriptUrl') || '';
 let detaineeCount = 0;
 let reportData = [];
 let currentPeriod = 'minggu';
-let uploadedFiles = { kondisi: null, makan: null };
+let uploadedFiles = { kondisi: [], makan: [] };
 let isAdminLoggedIn = false;
 let targetPageAfterPin = 'rekap';
 
@@ -1131,30 +1164,33 @@ function toggleDeport(id, state) {
 
 function triggerUpload(inputId) { document.getElementById(inputId).click(); }
 
-// ── KOMPRES FOTO ───────────────────────────────────────────
-function compressImage(dataUrl, maxWidth, quality) {
-  return new Promise(function(resolve) {
+// ── KOMPRES FOTO (cepat: langsung dari File via ObjectURL, hasil berupa Blob) ──
+function compressImage(file, maxWidth = 900, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
+    img.onload = () => {
       let w = img.width, h = img.height;
       if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(objectUrl);
+        if (blob) resolve({ blob, previewUrl: URL.createObjectURL(blob) });
+        else reject(new Error('Kompresi gagal'));
+      }, 'image/jpeg', quality);
     };
-    img.src = dataUrl;
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Gagal memuat gambar')); };
+    img.src = objectUrl;
   });
 }
 
-// ── IMGBB UPLOAD ───────────────────────────────────────────
-async function uploadToImgBB(dataUrl, filename) {
+// ── IMGBB UPLOAD (upload Blob langsung, tanpa encode base64 → jauh lebih cepat) ──
+async function uploadToImgBB(blob, filename) {
   const imgbbKey = localStorage.getItem('imgbbKey') || IMGBB_API_KEY_DEFAULT;
-  const compressed = await compressImage(dataUrl, 1024, 0.75);
-  const base64 = compressed.split(',')[1];
   const formData = new FormData();
-  formData.append('image', base64);
-  formData.append('name', filename);
+  formData.append('image', blob, filename || 'foto.jpg');
   const res = await fetch('https://api.imgbb.com/1/upload?key=' + imgbbKey, { method: 'POST', body: formData });
   const json = await res.json();
   if (json.success) return json.data.url;
@@ -1162,30 +1198,59 @@ async function uploadToImgBB(dataUrl, filename) {
 }
 
 function handleUpload(input, type) {
-  if (!input.files || !input.files[0]) return;
-  const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const dataUrl = e.target.result;
-    uploadedFiles[type] = { name: file.name, dataUrl: dataUrl, imgbbUrl: null };
-    const box = document.getElementById('upload-' + type + '-box');
-    box.innerHTML = `
-      <img src="${dataUrl}" style="max-width:100%;max-height:160px;border-radius:8px;display:block;margin:0 auto 6px;" alt="Preview">
-      <span style="color:var(--green-ok);font-size:12px">✓ ${file.name}</span>`;
-    box.style.borderColor = 'var(--green-ok)';
-    box.style.background = '#e8f5ee';
-    const statusEl = document.getElementById(type + '-upload-status');
-    const ukuranMB = (file.size / 1024 / 1024).toFixed(1);
-    statusEl.innerHTML = `<div class="upload-progress"><div class="spinner"></div> Mengompres foto (${ukuranMB}MB) & mengupload...</div>`;
-    uploadToImgBB(dataUrl, file.name).then(url => {
-      uploadedFiles[type].imgbbUrl = url;
-      statusEl.innerHTML = `<div class="foto-link-box"><i class="ti ti-circle-check"></i> ✅ Foto siap! Akan otomatis terkirim ke grup WA.</div>`;
-    }).catch(err => {
-      statusEl.innerHTML = `<div class="alert-box alert-warning" style="margin:0"><i class="ti ti-alert-triangle"></i> Upload gagal, coba lagi.</div>`;
-      console.warn('ImgBB error:', err);
-    });
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  files.forEach(file => addPhoto(file, type));
+  input.value = ''; // reset supaya bisa pilih file yang sama lagi / nambah lagi
+}
+
+function addPhoto(file, type) {
+  const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 7);
+  const item = { id, name: file.name, previewUrl: null, imgbbUrl: null, status: 'processing' };
+  uploadedFiles[type].push(item);
+  renderPhotoGrid(type);
+
+  item.promise = compressImage(file).then(({ blob, previewUrl }) => {
+    item.previewUrl = previewUrl;
+    item.status = 'uploading';
+    renderPhotoGrid(type);
+    return uploadToImgBB(blob, file.name);
+  }).then(url => {
+    item.imgbbUrl = url;
+    item.status = 'done';
+    renderPhotoGrid(type);
+  }).catch(err => {
+    item.status = 'error';
+    renderPhotoGrid(type);
+    console.warn(type + ' upload error:', err);
+  });
+}
+
+function removePhoto(type, id) {
+  const item = uploadedFiles[type].find(p => p.id === id);
+  if (item && item.previewUrl) { try { URL.revokeObjectURL(item.previewUrl); } catch(e) {} }
+  uploadedFiles[type] = uploadedFiles[type].filter(p => p.id !== id);
+  renderPhotoGrid(type);
+}
+
+function renderPhotoGrid(type) {
+  const grid = document.getElementById(type + '-photo-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  uploadedFiles[type].forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'photo-thumb';
+    let statusHtml = '';
+    if (item.status === 'processing') statusHtml = '<div class="thumb-status status-uploading">Memproses...</div>';
+    else if (item.status === 'uploading') statusHtml = '<div class="thumb-status status-uploading">Mengupload...</div>';
+    else if (item.status === 'done') statusHtml = '<div class="thumb-status status-done">✓ Siap</div>';
+    else if (item.status === 'error') statusHtml = '<div class="thumb-status status-error">Gagal, ulangi</div>';
+    div.innerHTML = `
+      ${item.previewUrl ? `<img src="${item.previewUrl}" alt="Foto">` : ''}
+      <button class="thumb-remove" onclick="removePhoto('${type}','${item.id}')" title="Hapus foto">✕</button>
+      ${statusHtml}`;
+    grid.appendChild(div);
+  });
 }
 
 function getDetaineeList() {
@@ -1219,22 +1284,17 @@ async function submitAbsen() {
   if (kondisi === 'TIDAK AMAN' && !keteranganTA) {
     alert('Harap isi keterangan ketidakamanan'); return;
   }
-  if (!uploadedFiles.kondisi) {
-    alert('Harap unggah foto kondisi deteni'); return;
+  if (!uploadedFiles.kondisi.length) {
+    alert('Harap unggah minimal 1 foto kondisi deteni'); return;
   }
 
   const btn = document.getElementById('btn-kirim');
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff"></div> Memproses...';
+  btn.innerHTML = '<div class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff"></div> Menunggu upload foto selesai...';
 
-  if (uploadedFiles.kondisi && !uploadedFiles.kondisi.imgbbUrl) {
-    try { uploadedFiles.kondisi.imgbbUrl = await uploadToImgBB(uploadedFiles.kondisi.dataUrl, uploadedFiles.kondisi.name); }
-    catch(e) { console.warn('Upload kondisi gagal', e); }
-  }
-  if (uploadedFiles.makan && !uploadedFiles.makan.imgbbUrl) {
-    try { uploadedFiles.makan.imgbbUrl = await uploadToImgBB(uploadedFiles.makan.dataUrl, uploadedFiles.makan.name); }
-    catch(e) { console.warn('Upload makan gagal', e); }
-  }
+  // Tunggu semua proses kompresi + upload foto (berjalan paralel) selesai
+  const allItems = [...uploadedFiles.kondisi, ...uploadedFiles.makan];
+  await Promise.allSettled(allItems.map(p => p.promise));
 
   btn.disabled = false;
   btn.innerHTML = '<i class="ti ti-brand-whatsapp"></i> Kirim Laporan ke WhatsApp Grup';
@@ -1281,32 +1341,39 @@ async function submitAbsen() {
   msg += '🛡️ *KONDISI KEAMANAN: ' + kondisi + '*\n';
   if (kondisi === 'TIDAK AMAN') msg += '⚠️ Keterangan: ' + keteranganTA + '\n';
   msg += '\n';
-  if (uploadedFiles.kondisi?.imgbbUrl) msg += '📸 Foto Kondisi Deteni:\n' + uploadedFiles.kondisi.imgbbUrl + '\n';
-  else if (uploadedFiles.kondisi) msg += '📸 Foto Kondisi: ' + uploadedFiles.kondisi.name + '\n';
-  if (uploadedFiles.makan?.imgbbUrl) msg += '🍽️ Foto Pemberian Makan:\n' + uploadedFiles.makan.imgbbUrl + '\n';
+  if (uploadedFiles.kondisi.length) {
+    msg += '📸 Foto Kondisi Deteni (' + uploadedFiles.kondisi.length + ' foto):\n';
+    uploadedFiles.kondisi.forEach((f, i) => {
+      msg += (i+1) + '. ' + (f.imgbbUrl || ('[upload gagal - ' + f.name + ']')) + '\n';
+    });
+    msg += '\n';
+  }
+  if (uploadedFiles.makan.length) {
+    msg += '🍽️ Foto Pemberian Makan (' + uploadedFiles.makan.length + ' foto):\n';
+    uploadedFiles.makan.forEach((f, i) => {
+      msg += (i+1) + '. ' + (f.imgbbUrl || ('[upload gagal - ' + f.name + ']')) + '\n';
+    });
+    msg += '\n';
+  }
   msg += '━━━━━━━━━━━━━━━━━━━━━━\n';
   msg += '✅ _Laporan otomatis dari Sistem Piket Deteni_';
 
   document.getElementById('wa-preview-text').textContent = msg;
 
+  function buildFotoBlock(label, arr) {
+    if (!arr.length) return '';
+    let html = `<div style="margin-bottom:10px"><p style="font-size:12px;color:#555;margin-bottom:6px;font-weight:600">${label} (${arr.length} foto):</p><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+    arr.forEach(f => {
+      html += `<img src="${f.previewUrl}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #c0dd97" alt="Foto">`;
+    });
+    html += `</div><div class="foto-link-box" style="margin-top:6px"><i class="ti ti-link"></i><span>Link foto sudah masuk ke pesan WhatsApp ✅</span></div></div>`;
+    return html;
+  }
+
   const fotoSection = document.getElementById('foto-link-section');
   fotoSection.innerHTML = '';
-  if (uploadedFiles.kondisi) {
-    fotoSection.innerHTML += `
-      <div style="margin-bottom:10px">
-        <p style="font-size:12px;color:#555;margin-bottom:6px;font-weight:600">📸 Foto Kondisi Deteni:</p>
-        <img src="${uploadedFiles.kondisi.dataUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97;max-height:200px;object-fit:cover" alt="Foto kondisi">
-        <div class="foto-link-box" style="margin-top:6px"><i class="ti ti-link"></i><span>Link foto sudah masuk ke pesan WhatsApp ✅</span></div>
-      </div>`;
-  }
-  if (uploadedFiles.makan) {
-    fotoSection.innerHTML += `
-      <div style="margin-bottom:10px">
-        <p style="font-size:12px;color:#555;margin-bottom:6px;font-weight:600">🍽️ Foto Pemberian Makan:</p>
-        <img src="${uploadedFiles.makan.dataUrl}" style="width:100%;border-radius:8px;border:1px solid #c0dd97;max-height:200px;object-fit:cover" alt="Foto makan">
-        <div class="foto-link-box" style="margin-top:6px"><i class="ti ti-link"></i><span>Link foto sudah masuk ke pesan WhatsApp ✅</span></div>
-      </div>`;
-  }
+  fotoSection.innerHTML += buildFotoBlock('📸 Foto Kondisi Deteni', uploadedFiles.kondisi);
+  fotoSection.innerHTML += buildFotoBlock('🍽️ Foto Pemberian Makan', uploadedFiles.makan);
 
   document.getElementById('success-overlay').classList.remove('hidden');
 
@@ -1319,8 +1386,8 @@ async function submitAbsen() {
         statusPetugas, kondisi, keteranganTA: keteranganTA || '-',
         jumlahDeteni: deteineeList.length,
         deteniJson: JSON.stringify(deteineeList),
-        fotoKondisi: uploadedFiles.kondisi?.imgbbUrl || uploadedFiles.kondisi?.name || '-',
-        fotoMakan: uploadedFiles.makan?.imgbbUrl || '-'
+        fotoKondisi: uploadedFiles.kondisi.map(f => f.imgbbUrl || f.name).join(', ') || '-',
+        fotoMakan: uploadedFiles.makan.map(f => f.imgbbUrl || f.name).join(', ') || '-'
       })
     }).catch(e => console.warn('Sheets:', e));
   }
@@ -1342,17 +1409,16 @@ function resetForm() {
   document.getElementById('keterangan-tidak-aman').classList.add('hidden');
   document.getElementById('isi-tidak-aman').value = '';
   document.getElementById('detainee-list').innerHTML = '';
-  document.getElementById('kondisi-upload-status').innerHTML = '';
-  document.getElementById('makan-upload-status').innerHTML = '';
   detaineeCount = 0;
-  uploadedFiles = { kondisi: null, makan: null };
-  ['kondisi','makan'].forEach(t => {
-    const box = document.getElementById('upload-' + t + '-box');
-    const icons  = { kondisi: 'ti-camera-plus', makan: 'ti-bowl-chopsticks' };
-    const labels = { kondisi: 'Tap untuk unggah foto kondisi', makan: 'Tap untuk unggah foto saat pemberian makan' };
-    box.innerHTML = `<i class="ti ${icons[t]}" style="font-size:24px;display:block;margin-bottom:6px"></i><span>${labels[t]}</span>`;
-    box.style.borderColor = ''; box.style.background = '';
+
+  // Bersihkan foto & object URL
+  [...uploadedFiles.kondisi, ...uploadedFiles.makan].forEach(f => {
+    if (f.previewUrl) { try { URL.revokeObjectURL(f.previewUrl); } catch(e) {} }
   });
+  uploadedFiles = { kondisi: [], makan: [] };
+  document.getElementById('kondisi-photo-grid').innerHTML = '';
+  document.getElementById('makan-photo-grid').innerHTML = '';
+
   // Re-init autofill banners for new form
   initAutofillPetugas();
   initAutofillDeteni();

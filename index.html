@@ -261,7 +261,7 @@
   }
   .thumb-status.status-uploading { background: rgba(12,68,124,0.85); }
   .thumb-status.status-done { background: rgba(26,122,74,0.85); }
-  .thumb-status.status-error { background: rgba(192,57,43,0.85); }
+  .thumb-status.status-error { background: rgba(192,57,43,0.85); cursor: pointer; }
   .recap-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .recap-table th {
     background: var(--navy); color: #fff;
@@ -1164,26 +1164,45 @@ function toggleDeport(id, state) {
 
 function triggerUpload(inputId) { document.getElementById(inputId).click(); }
 
-// ── KOMPRES FOTO (cepat: langsung dari File via ObjectURL, hasil berupa Blob) ──
-function compressImage(file, maxWidth = 900, quality = 0.72) {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      canvas.toBlob((blob) => {
-        URL.revokeObjectURL(objectUrl);
-        if (blob) resolve({ blob, previewUrl: URL.createObjectURL(blob) });
-        else reject(new Error('Kompresi gagal'));
-      }, 'image/jpeg', quality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Gagal memuat gambar')); };
-    img.src = objectUrl;
-  });
+// ── DECODE GAMBAR (dukung fallback untuk format yg sulit dibaca <img>, mis. HEIC dari galeri iPhone) ──
+async function decodeImageSource(file) {
+  // Coba createImageBitmap dulu -- dukungan decoder browser untuk format ini kadang lebih luas dari <img>
+  if (window.createImageBitmap) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      return bitmap;
+    } catch (e) {
+      // lanjut ke fallback di bawah
+    }
+  }
+  // Fallback: pakai elemen <img>
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('DECODE_FAILED'));
+      i.src = objectUrl;
+    });
+    return img;
+  } catch (e) {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error('DECODE_FAILED');
+  }
+}
+
+// ── KOMPRES FOTO (dengan fallback decode ganda) ──
+async function compressImage(file, maxWidth = 900, quality = 0.72) {
+  const source = await decodeImageSource(file); // lempar 'DECODE_FAILED' jika gagal total
+  let w = source.width, h = source.height;
+  if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(source, 0, 0, w, h);
+  if (source.close) { try { source.close(); } catch(e) {} } // tutup ImageBitmap agar tidak leak memori
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+  if (!blob) throw new Error('COMPRESS_FAILED');
+  return { blob, previewUrl: URL.createObjectURL(blob) };
 }
 
 // ── IMGBB UPLOAD (upload Blob langsung, tanpa encode base64 → jauh lebih cepat) ──
@@ -1206,24 +1225,49 @@ function handleUpload(input, type) {
 
 function addPhoto(file, type) {
   const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 7);
-  const item = { id, name: file.name, previewUrl: null, imgbbUrl: null, status: 'processing' };
+  const item = { id, name: file.name, file, previewUrl: null, imgbbUrl: null, status: 'processing', errorMsg: null };
   uploadedFiles[type].push(item);
   renderPhotoGrid(type);
+  item.promise = processPhoto(item, type);
+}
 
-  item.promise = compressImage(file).then(({ blob, previewUrl }) => {
+// Proses satu foto: kompres (dengan fallback ke file asli bila gagal) lalu upload ke ImgBB.
+// Ini yang memperbaiki kegagalan upload foto dari galeri (mis. format HEIC dari iPhone yang
+// gagal dibaca canvas): alih-alih langsung menandai gagal, foto asli tetap diupload apa adanya.
+async function processPhoto(item, type) {
+  try {
+    let blob, previewUrl;
+    try {
+      const compressed = await compressImage(item.file);
+      blob = compressed.blob;
+      previewUrl = compressed.previewUrl;
+    } catch (compressErr) {
+      console.warn('Kompresi gagal, upload file asli tanpa resize:', compressErr);
+      blob = item.file; // upload file asli, tidak dikompres
+      previewUrl = null; // preview tidak tersedia, tapi upload tetap dicoba
+    }
     item.previewUrl = previewUrl;
     item.status = 'uploading';
     renderPhotoGrid(type);
-    return uploadToImgBB(blob, file.name);
-  }).then(url => {
+    const url = await uploadToImgBB(blob, item.name);
     item.imgbbUrl = url;
     item.status = 'done';
-    renderPhotoGrid(type);
-  }).catch(err => {
+  } catch (err) {
     item.status = 'error';
-    renderPhotoGrid(type);
+    item.errorMsg = (err && err.message) ? err.message : 'Gagal upload';
     console.warn(type + ' upload error:', err);
-  });
+  }
+  renderPhotoGrid(type);
+}
+
+// Coba ulang foto yang gagal (klik pada thumbnail berstatus error)
+function retryPhoto(type, id) {
+  const item = uploadedFiles[type].find(p => p.id === id);
+  if (!item || item.status !== 'error') return;
+  item.status = 'processing';
+  item.errorMsg = null;
+  renderPhotoGrid(type);
+  item.promise = processPhoto(item, type);
 }
 
 function removePhoto(type, id) {
@@ -1244,9 +1288,9 @@ function renderPhotoGrid(type) {
     if (item.status === 'processing') statusHtml = '<div class="thumb-status status-uploading">Memproses...</div>';
     else if (item.status === 'uploading') statusHtml = '<div class="thumb-status status-uploading">Mengupload...</div>';
     else if (item.status === 'done') statusHtml = '<div class="thumb-status status-done">✓ Siap</div>';
-    else if (item.status === 'error') statusHtml = '<div class="thumb-status status-error">Gagal, ulangi</div>';
+    else if (item.status === 'error') statusHtml = '<div class="thumb-status status-error" onclick="retryPhoto(\'' + type + '\',\'' + item.id + '\')">Gagal, tap ulang</div>';
     div.innerHTML = `
-      ${item.previewUrl ? `<img src="${item.previewUrl}" alt="Foto">` : ''}
+      ${item.previewUrl ? `<img src="${item.previewUrl}" alt="Foto">` : (item.status === 'error' ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fdf0ef;color:#c0392b;font-size:22px;cursor:pointer" onclick="retryPhoto('${type}','${item.id}')"><i class="ti ti-refresh"></i></div>` : '')}
       <button class="thumb-remove" onclick="removePhoto('${type}','${item.id}')" title="Hapus foto">✕</button>
       ${statusHtml}`;
     grid.appendChild(div);
@@ -1295,6 +1339,15 @@ async function submitAbsen() {
   // Tunggu semua proses kompresi + upload foto (berjalan paralel) selesai
   const allItems = [...uploadedFiles.kondisi, ...uploadedFiles.makan];
   await Promise.allSettled(allItems.map(p => p.promise));
+
+  // Jika masih ada foto wajib yang gagal setelah ditunggu, beri tahu user & jangan kirim
+  const gagalKondisi = uploadedFiles.kondisi.filter(f => f.status === 'error');
+  if (gagalKondisi.length > 0) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-brand-whatsapp"></i> Kirim Laporan ke WhatsApp Grup';
+    alert('Ada ' + gagalKondisi.length + ' foto kondisi deteni yang gagal diupload. Tap foto tersebut untuk mencoba lagi sebelum mengirim laporan.');
+    return;
+  }
 
   btn.disabled = false;
   btn.innerHTML = '<i class="ti ti-brand-whatsapp"></i> Kirim Laporan ke WhatsApp Grup';
